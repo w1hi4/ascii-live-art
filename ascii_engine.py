@@ -1,0 +1,382 @@
+import math
+import random
+from PIL import Image, ImageSequence, ImageEnhance
+
+# --- ANSI Utilities ---
+
+def ansi_rgb_fg(r, g, b):
+    return f"\033[38;2;{r};{g};{b}m"
+
+def ansi_rgb_bg(r, g, b):
+    return f"\033[48;2;{r};{g};{b}m"
+
+ANSI_RESET = "\033[0m"
+ANSI_HOME = "\033[H"
+ANSI_CLEAR = "\033[2J"
+ANSI_HIDE_CURSOR = "\033[?25l"
+ANSI_SHOW_CURSOR = "\033[?25h"
+
+DENSE_CHARS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+SIMPLE_CHARS = " .:-=+*#%@"
+BLOCK_CHARS = " ░▒▓█"
+BINARY_CHARS = " 01"
+
+# --- Image Conversion to ANSI Frames ---
+
+def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
+    """
+    Renders an RGBA image using Unicode half-blocks (▀ and ▄) in 24-bit Truecolor.
+    Allows 2 vertical pixels per terminal character row for 2x resolution.
+    """
+    img = img.convert("RGBA")
+    if contrast != 1.0:
+        enh = ImageEnhance.Contrast(img)
+        img = enh.enhance(contrast)
+    if brightness != 1.0:
+        enh = ImageEnhance.Brightness(img)
+        img = enh.enhance(brightness)
+
+    orig_w, orig_h = img.size
+    aspect = orig_h / orig_w
+    height = int(width * aspect)
+    if height % 2 != 0:
+        height += 1
+
+    resized = img.resize((width, height), Image.Resampling.LANCZOS)
+    lines = []
+
+    for y in range(0, height, 2):
+        line = ""
+        cur_fg = None
+        cur_bg = None
+
+        for x in range(width):
+            r1, g1, b1, a1 = resized.getpixel((x, y))
+            r2, g2, b2, a2 = resized.getpixel((x, y + 1))
+
+            top_solid = a1 > 40
+            bot_solid = a2 > 40
+
+            if not top_solid and not bot_solid:
+                if cur_fg is not None or cur_bg is not None:
+                    line += ANSI_RESET
+                    cur_fg, cur_bg = None, None
+                line += " "
+            elif top_solid and not bot_solid:
+                if cur_bg is not None:
+                    line += "\033[49m"
+                    cur_bg = None
+                if cur_fg != (r1, g1, b1):
+                    line += ansi_rgb_fg(r1, g1, b1)
+                    cur_fg = (r1, g1, b1)
+                line += "▀"
+            elif not top_solid and bot_solid:
+                if cur_bg is not None:
+                    line += "\033[49m"
+                    cur_bg = None
+                if cur_fg != (r2, g2, b2):
+                    line += ansi_rgb_fg(r2, g2, b2)
+                    cur_fg = (r2, g2, b2)
+                line += "▄"
+            else:
+                if cur_fg != (r1, g1, b1):
+                    line += ansi_rgb_fg(r1, g1, b1)
+                    cur_fg = (r1, g1, b1)
+                if cur_bg != (r2, g2, b2):
+                    line += ansi_rgb_bg(r2, g2, b2)
+                    cur_bg = (r2, g2, b2)
+                line += "▀"
+
+        if cur_fg is not None or cur_bg is not None:
+            line += ANSI_RESET
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, brightness=1.0):
+    """
+    Renders an RGBA image using ASCII characters with 24-bit Truecolor.
+    """
+    img = img.convert("RGBA")
+    if contrast != 1.0:
+        enh = ImageEnhance.Contrast(img)
+        img = enh.enhance(contrast)
+    if brightness != 1.0:
+        enh = ImageEnhance.Brightness(img)
+        img = enh.enhance(brightness)
+
+    orig_w, orig_h = img.size
+    # Character aspect ratio correction (terminal chars are ~2x taller than wide)
+    height = int(width * (orig_h / orig_w) * 0.48)
+    if height < 1:
+        height = 1
+
+    resized = img.resize((width, height), Image.Resampling.LANCZOS)
+    lines = []
+    num_chars = len(char_set)
+
+    for y in range(height):
+        line = ""
+        cur_fg = None
+        for x in range(width):
+            r, g, b, a = resized.getpixel((x, y))
+            if a < 40:
+                if cur_fg is not None:
+                    line += ANSI_RESET
+                    cur_fg = None
+                line += " "
+            else:
+                gray = int(0.299 * r + 0.587 * g + 0.114 * b)
+                char_idx = min(num_chars - 1, max(0, gray * num_chars // 256))
+                char = char_set[char_idx]
+
+                if cur_fg != (r, g, b):
+                    line += ansi_rgb_fg(r, g, b)
+                    cur_fg = (r, g, b)
+                line += char
+
+        if cur_fg is not None:
+            line += ANSI_RESET
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+# --- Procedural Animation Generators for Static Images ---
+
+def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
+    """
+    Sweeps a laser scanner beam vertically down across the image.
+    """
+    base = img.convert("RGBA")
+    w, h = base.size
+    frames = []
+
+    for k in range(num_frames):
+        # Scanline y position bounces up and down smoothly
+        progress = (k / num_frames) * 2 * math.pi
+        scan_ratio = 0.5 - 0.5 * math.cos(progress)
+        scan_y = int(scan_ratio * h)
+
+        # Create frame image with scanner boost
+        frame_img = base.copy()
+        pixels = frame_img.load()
+
+        # Beam width in pixels
+        band = max(4, int(h * 0.08))
+
+        for y in range(h):
+            dist = abs(y - scan_y)
+            if dist < band:
+                # Add intense laser bloom
+                intensity = 1.0 - (dist / band)
+                boost = int(140 * intensity)
+                for x in range(w):
+                    r, g, b, a = pixels[x, y]
+                    if a > 30:
+                        # Golden/white laser bloom
+                        nr = min(255, r + boost)
+                        ng = min(255, g + boost)
+                        nb = min(255, b + int(boost * 0.5))
+                        pixels[x, y] = (nr, ng, nb, a)
+            else:
+                # Slight dimming outside the scan beam for contrast
+                for x in range(w):
+                    r, g, b, a = pixels[x, y]
+                    if a > 30:
+                        pixels[x, y] = (int(r * 0.88), int(g * 0.88), int(b * 0.88), a)
+
+        if mode == "halfblock":
+            text = convert_image_to_halfblock(frame_img, width=width)
+        else:
+            text = convert_image_to_ascii(frame_img, width=width, char_set=SIMPLE_CHARS)
+
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+
+    return frames
+
+
+def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
+    """
+    Smoothly pulses brightness, saturation, and golden glow.
+    """
+    base = img.convert("RGBA")
+    frames = []
+
+    for k in range(num_frames):
+        phase = (k / num_frames) * 2 * math.pi
+        pulse = 0.75 + 0.35 * math.sin(phase)
+
+        frame_img = base.copy()
+        pixels = frame_img.load()
+        w, h = frame_img.size
+
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = pixels[x, y]
+                if a > 30:
+                    nr = min(255, int(r * pulse * 1.1))
+                    ng = min(255, int(g * pulse * 1.05))
+                    nb = min(255, int(b * pulse * 0.85)) # warmer gold
+                    pixels[x, y] = (nr, ng, nb, a)
+
+        if mode == "halfblock":
+            text = convert_image_to_halfblock(frame_img, width=width)
+        else:
+            text = convert_image_to_ascii(frame_img, width=width, char_set=SIMPLE_CHARS)
+
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+
+    return frames
+
+
+def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
+    """
+    Simulates digital matrix rain cascading around and over the image.
+    """
+    base = img.convert("RGBA")
+    w, h = base.size
+    frames = []
+
+    # Initialize raindrop columns
+    drops = [random.randint(0, h) for _ in range(w // 4)]
+
+    for k in range(num_frames):
+        frame_img = base.copy()
+        pixels = frame_img.load()
+
+        # Update drops
+        for col_idx in range(len(drops)):
+            drops[col_idx] = (drops[col_idx] + int(h * 0.12)) % h
+            x_pos = min(w - 1, col_idx * 4 + 2)
+            y_head = drops[col_idx]
+
+            # Draw a green/gold digital raindrop trail
+            for tail in range(8):
+                y_pos = (y_head - tail) % h
+                intensity = max(0.0, 1.0 - (tail / 8.0))
+                r, g, b, a = pixels[x_pos, y_pos]
+                if a > 30:
+                    # Illuminate existing logo pixels with digital green/gold
+                    pixels[x_pos, y_pos] = (
+                        min(255, int(r + 100 * intensity)),
+                        min(255, int(g + 180 * intensity)),
+                        min(255, int(b + 50 * intensity)),
+                        a
+                    )
+
+        if mode == "halfblock":
+            text = convert_image_to_halfblock(frame_img, width=width)
+        else:
+            text = convert_image_to_ascii(frame_img, width=width, char_set=BINARY_CHARS)
+
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+
+    return frames
+
+
+def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
+    """
+    Produces cyberpunk glitch offsets and digital decrypt effects.
+    """
+    base = img.convert("RGBA")
+    w, h = base.size
+    frames = []
+
+    for k in range(num_frames):
+        frame_img = base.copy()
+        pixels = frame_img.load()
+
+        # In some frames, introduce slice displacement glitches
+        if k % 3 == 0:
+            glitch_y = random.randint(h // 6, h - h // 6)
+            glitch_h = random.randint(2, max(3, h // 10))
+            shift_x = random.randint(-4, 4)
+
+            for y in range(glitch_y, min(h, glitch_y + glitch_h)):
+                row_pixels = [pixels[x, y] for x in range(w)]
+                for x in range(w):
+                    src_x = (x - shift_x) % w
+                    pixels[x, y] = row_pixels[src_x]
+
+        if mode == "halfblock":
+            text = convert_image_to_halfblock(frame_img, width=width)
+        else:
+            text = convert_image_to_ascii(frame_img, width=width, char_set=DENSE_CHARS)
+
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+
+    return frames
+
+
+# --- GIF Handler ---
+
+def convert_gif_to_frames(gif_path, width=54, mode="halfblock"):
+    """
+    Extracts every frame of an animated GIF and converts each to ANSI string.
+    """
+    gif = Image.open(gif_path)
+    frames = []
+    durations = []
+
+    for frame in ImageSequence.Iterator(gif):
+        dur = frame.info.get("duration", 100)
+        durations.append(dur)
+        rgba = frame.convert("RGBA")
+
+        if mode == "halfblock":
+            text = convert_image_to_halfblock(rgba, width=width)
+        else:
+            text = convert_image_to_ascii(rgba, width=width, char_set=SIMPLE_CHARS)
+
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+
+    avg_duration = sum(durations) / max(1, len(durations))
+    delay_ms = int(avg_duration) if avg_duration > 20 else 80
+    return frames, delay_ms
+
+
+# --- Donut 3D Math Generator ---
+
+def generate_donut_frames(num_frames=24, width=50, height=22):
+    """
+    Classic Andy Sloane 3D spinning donut rendered into colorful ANSI frames.
+    """
+    frames = []
+    for k in range(num_frames):
+        A = (k / num_frames) * 2 * math.pi
+        B = (k / num_frames) * math.pi
+
+        cosA, sinA = math.cos(A), math.sin(A)
+        cosB, sinB = math.cos(B), math.sin(B)
+
+        b = [" "] * (width * height)
+        z = [0.0] * (width * height)
+
+        for j in range(0, 628, 7):
+            cosj, sinj = math.cos(j / 100), math.sin(j / 100)
+            for i in range(0, 628, 2):
+                sini, cosi = math.sin(i / 100), math.cos(i / 100)
+                h_val = cosj + 2
+                D = 1 / (sini * h_val * sinA + sinj * cosA + 5)
+                t = sini * h_val * cosA - sinj * sinA
+                x = int(width / 2 + 30 * D * (cosi * h_val * cosB - t * sinB))
+                y = int(height / 2 + 15 * D * (cosi * h_val * sinB + t * cosB))
+                o = x + width * y
+                N = int(8 * ((sinj * sinA - sini * cosj * cosA) * cosB - sini * cosj * sinA - sinj * cosA - cosi * cosj * sinB))
+
+                if 0 <= y < height and 0 <= x < width and D > z[o]:
+                    z[o] = D
+                    idx = max(0, min(11, N))
+                    char = ".,-~:;=!*#$@"[idx]
+                    # Cyan/magenta neon color gradient
+                    color_code = 196 + idx * 5
+                    b[o] = f"\033[38;5;{color_code}m{char}\033[0m"
+
+        lines = ["".join(b[row * width : (row + 1) * width]) for row in range(height)]
+        frame_text = "\n".join(lines)
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{frame_text}{ANSI_RESET}\n")
+
+    return frames
+

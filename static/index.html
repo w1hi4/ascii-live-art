@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ascii.live/ciarl - Real-Time Terminal Streams</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <main class="terminal-shell">
+
+    <!-- ASCII Logo Header -->
+    <pre class="ascii-banner">
+  ____ ___    _    ____  _     
+ / ___|_ _|  / \  |  _ \| |    
+| |    | |  / _ \ | |_) | |    
+| |___ | | / ___ \|  _ <| |___ 
+ \____|___/_/   \_\_| \_\_____|
+  ASCII.LIVE • Terminal Streaming Platform</pre>
+
+    <div class="sub-header">
+      <span>Stream live animations directly into your shell.</span>
+      <span class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="headerStats">LIVE</span>
+      </span>
+    </div>
+
+    <!-- Hero Command Box -->
+    <div class="cmd-hero">
+      <div class="cmd-line">
+        <span class="prompt-symbol">$</span>
+        <span id="heroCmd">curl -s http://localhost:8090/ciarl</span>
+      </div>
+      <button class="btn-sm" onclick="copyText(document.getElementById('heroCmd').textContent)">Copy</button>
+    </div>
+
+    <!-- Available Streams Table (Like Real ascii.live) -->
+    <div class="section-title">
+      <span>Available Streams</span>
+    </div>
+
+    <table class="streams-table">
+      <thead>
+        <tr>
+          <th>Stream</th>
+          <th>Terminal Command</th>
+          <th style="text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="streamsBody">
+        <!-- Rendered dynamically -->
+      </tbody>
+    </table>
+
+    <!-- Compact Custom Animation Creator -->
+    <div class="section-title">
+      <span>Create Your Own Stream</span>
+    </div>
+
+    <div class="creator-card">
+      <div class="compact-grid">
+        <!-- Left: Upload & Config -->
+        <div>
+          <div id="dropzone" class="drop-compact">
+            <div style="color: var(--gold); font-size: 1.25rem;">📁</div>
+            <div id="dropText" style="font-weight: 600; font-size: 0.8rem; margin-top: 0.25rem;">Drop Image or Animated GIF</div>
+            <div style="color: var(--text-dim); font-size: 0.7rem;">or click to select file</div>
+            <input type="file" id="fileInput" accept="image/png, image/jpeg, image/gif, image/webp" style="display: none;">
+          </div>
+
+          <div style="margin-top: 0.75rem;">
+            <input type="text" id="slugInput" class="input-ctrl" placeholder="slug (e.g. my-logo)">
+            <input type="text" id="titleInput" class="input-ctrl" placeholder="title (e.g. My Logo)">
+            
+            <div style="display: flex; gap: 0.5rem;">
+              <select id="modeSelect" class="input-ctrl" style="flex: 1;">
+                <option value="halfblock" selected>Half-Block 24-bit Truecolor (2x Res)</option>
+                <option value="ascii">Classic ASCII Characters</option>
+              </select>
+              <select id="effectSelect" class="input-ctrl" style="flex: 1;">
+                <option value="scanner" selected>⚡ Scanner</option>
+                <option value="pulse">✨ Pulse</option>
+                <option value="matrix">💻 Matrix</option>
+                <option value="glitch">👾 Glitch</option>
+              </select>
+            </div>
+
+            <button id="btnGenerate" class="btn-publish">Generate Stream & Get URL</button>
+          </div>
+        </div>
+
+        <!-- Right: Live Terminal Preview -->
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.25rem;">
+            <span>Preview (ANSI stream)</span>
+            <span style="color: var(--green);">● STREAMING</span>
+          </div>
+          <div id="terminalScreen" class="preview-box">
+            <!-- ANSI Stream Rendered Here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Banner -->
+      <div id="shareBanner" class="success-box">
+        <div style="color: var(--gold); font-weight: bold; margin-bottom: 0.5rem;">🎉 Stream Created & Live:</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #000; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
+          <code id="shareCurl" style="color: #fff; font-size: 0.8rem; user-select: all;"></code>
+          <button class="btn-sm" onclick="copyText(document.getElementById('shareCurl').textContent)">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minimal Footer -->
+    <footer>
+      Run in any terminal: <code>curl -s &lt;URL&gt;</code> • 100% Open & Lightweight • <a href="https://github.com" target="_blank" style="color: var(--gold); text-decoration: none;">GitHub</a>
+    </footer>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
