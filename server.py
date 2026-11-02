@@ -23,10 +23,22 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 # Thread pool for non-blocking image/GIF conversion
 EXECUTOR = ThreadPoolExecutor(max_workers=4)
 
+RESERVED_SLUGS = frozenset(["api", "health", "viewer", "static", "favicon", "favicon.ico", "art", "donut", "fire"])
+
 def generate_random_slug(length=6):
-    """Generates a clean, short, URL-friendly slug."""
+    """Generates a clean, unique, URL-friendly slug."""
+    adjectives = ["cyber", "retro", "quantum", "neon", "cosmic", "hyper", "glitch", "matrix", "pixel", "synth"]
+    nouns = ["wave", "pulse", "stream", "core", "grid", "beam", "flux", "void", "nova", "laser"]
+    for _ in range(30):
+        s = f"{random.choice(adjectives)}-{random.choice(nouns)}-{random.randint(10, 99)}"
+        if not db.is_slug_taken(s):
+            return s
     chars = string.ascii_lowercase + string.digits
-    return "".join(random.choice(chars) for _ in range(length))
+    for _ in range(30):
+        s = "".join(random.choice(chars) for _ in range(length))
+        if not db.is_slug_taken(s):
+            return s
+    return f"stream-{int(time.time())}"
 
 def init_default_animations():
     """Initializes default showcase animations in SQLite if not present."""
@@ -250,6 +262,7 @@ class ApiListHandler(tornado.web.RequestHandler):
         self.write(json.dumps({
             "animations": animations,
             "stats": db.get_stats(),
+            "capacity": db.get_capacity_stats()
         }))
 
 
@@ -287,10 +300,28 @@ class ApiUploadHandler(tornado.web.RequestHandler):
             contrast = float(self.get_body_argument("contrast", "1.0"))
             brightness = float(self.get_body_argument("brightness", "1.0"))
 
-            # Normalize or auto-generate slug
-            if not slug:
+            # Normalize and strictly validate unique slug
+            if slug:
+                slug = "".join(c for c in slug if c.isalnum() or c in "-_")
+                slug = slug.strip("-_")
+                if len(slug) < 2 or len(slug) > 32:
+                    self.set_status(400)
+                    self.write(json.dumps({"success": False, "error": "Slug must be between 2 and 32 characters (alphanumeric and dashes only)."}))
+                    return
+                if slug in RESERVED_SLUGS:
+                    self.set_status(400)
+                    self.write(json.dumps({"success": False, "error": f"Slug '/{slug}' is a reserved system stream name."}))
+                    return
+                if db.is_slug_taken(slug):
+                    self.set_status(409)
+                    self.write(json.dumps({
+                        "success": False,
+                        "error": f"Slug '/{slug}' is currently occupied in the 50 active slots. All active URLs must be unique. Choose another name or wait until it cycles out."
+                    }))
+                    return
+            else:
                 slug = generate_random_slug()
-            slug = "".join(c for c in slug if c.isalnum() or c in "-_")
+
             if not title:
                 title = slug.replace("-", " ").capitalize()
 
@@ -311,13 +342,14 @@ class ApiUploadHandler(tornado.web.RequestHandler):
 
             if not frames:
                 self.set_status(400)
-                self.write({"error": "Failed to generate frames from input"})
+                self.write(json.dumps({"success": False, "error": "Failed to generate frames from input"}))
                 return
 
-            # Save to SQLite with zlib compression
+            # Save to SQLite with zlib compression & enforce max 50 capacity retention
             db.save_animation(slug, title, fps, width, mode, effect, frames)
 
             host = self.request.host
+            capacity_stats = db.get_capacity_stats()
             self.set_header("Content-Type", "application/json")
             self.write(json.dumps({
                 "success": True,
@@ -326,7 +358,8 @@ class ApiUploadHandler(tornado.web.RequestHandler):
                 "curl_cmd": f"curl -s http://{host}/{slug}",
                 "url": f"http://{host}/{slug}",
                 "total_frames": len(frames),
-                "fps": fps
+                "fps": fps,
+                "capacity": capacity_stats
             }))
 
         except Exception as e:

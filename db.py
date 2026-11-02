@@ -9,9 +9,13 @@ from collections import OrderedDict
 # Default DB location in temp or local dir
 DB_PATH = os.path.join(tempfile.gettempdir(), "ascii_live_database.db")
 
+# Strict Production Retention Policy: Max 50 active slots
+MAX_CAPACITY = 50
+PROTECTED_SLUGS = frozenset(["art", "donut", "fire"])
+
 class LRUCache:
-    """Thread-safe in-memory LRU cache for the hottest animations."""
-    def __init__(self, capacity=500):
+    """Thread-safe in-memory LRU cache for the active animations."""
+    def __init__(self, capacity=50):
         self.capacity = capacity
         self.cache = OrderedDict()
         self.lock = threading.Lock()
@@ -31,8 +35,12 @@ class LRUCache:
             if len(self.cache) > self.capacity:
                 self.cache.popitem(last=False)
 
+    def remove(self, key):
+        with self.lock:
+            self.cache.pop(key, None)
+
 # Global in-memory cache and view buffer
-FRAME_CACHE = LRUCache(capacity=500)
+FRAME_CACHE = LRUCache(capacity=50)
 VIEW_BUFFER = {}
 VIEW_LOCK = threading.Lock()
 DB_LOCK = threading.Lock()
@@ -47,7 +55,7 @@ def get_db_connection():
     return conn
 
 def init_db():
-    """Initializes tables and high-performance indexes."""
+    """Initializes tables, high-performance indexes, and enforces capacity retention."""
     with DB_LOCK:
         conn = get_db_connection()
         try:
@@ -71,10 +79,72 @@ def init_db():
         finally:
             conn.close()
 
+    # Enforce strict 50 cap immediately
+    prune_to_capacity(MAX_CAPACITY)
+
+def is_slug_taken(slug):
+    """
+    Checks if a slug is currently occupied in the 50 active slots.
+    Returns True if occupied, False if free.
+    """
+    slug = slug.strip("/").lower()
+    if slug in PROTECTED_SLUGS:
+        return True
+    with DB_LOCK:
+        conn = get_db_connection()
+        try:
+            cur = conn.execute("SELECT 1 FROM animations WHERE slug = ?", (slug,))
+            return cur.fetchone() is not None
+        finally:
+            conn.close()
+
+def get_capacity_stats():
+    """Returns real-time capacity and active slots utilization."""
+    with DB_LOCK:
+        conn = get_db_connection()
+        try:
+            cur = conn.execute("SELECT COUNT(*) as cnt FROM animations")
+            cnt = cur.fetchone()["cnt"]
+            return {
+                "current": cnt,
+                "max": MAX_CAPACITY,
+                "available": max(0, MAX_CAPACITY - cnt),
+                "is_full": cnt >= MAX_CAPACITY,
+            }
+        finally:
+            conn.close()
+
+def prune_to_capacity(max_capacity=MAX_CAPACITY):
+    """
+    Ensures database count never exceeds max_capacity.
+    Evicts the oldest non-protected animations permanently (FIFO).
+    """
+    with DB_LOCK:
+        conn = get_db_connection()
+        try:
+            cur = conn.execute("SELECT COUNT(*) as cnt FROM animations")
+            cnt = cur.fetchone()["cnt"]
+            excess = cnt - max_capacity
+            if excess > 0:
+                cur = conn.execute(f"""
+                    SELECT slug FROM animations 
+                    WHERE slug NOT IN ({','.join('?' for _ in PROTECTED_SLUGS)})
+                    ORDER BY created_at ASC 
+                    LIMIT ?
+                """, list(PROTECTED_SLUGS) + [excess])
+                to_delete = [r["slug"] for r in cur.fetchall()]
+                for s in to_delete:
+                    conn.execute("DELETE FROM animations WHERE slug = ?", (s,))
+                    FRAME_CACHE.remove(s)
+                conn.commit()
+        finally:
+            conn.close()
+
 def save_animation(slug, title, fps, width, mode, effect, frames):
     """
     Compresses frames using zlib and saves to SQLite.
-    Also updates in-memory LRU cache.
+    Enforces strict 50-item limit: if full and inserting a new slug,
+    evicts the oldest non-protected slot permanently.
     """
     slug = slug.strip("/").lower()
     raw_payload = "\n---FRAME---\n".join(frames).encode("utf-8")
@@ -93,12 +163,30 @@ def save_animation(slug, title, fps, width, mode, effect, frames):
         "likes": 0,
     }
 
-    # Cache immediately
-    FRAME_CACHE.put(slug, data_record)
-
     with DB_LOCK:
         conn = get_db_connection()
         try:
+            cur = conn.execute("SELECT 1 FROM animations WHERE slug = ?", (slug,))
+            exists = cur.fetchone() is not None
+
+            # If inserting a brand new slug and capacity reached, evict oldest
+            if not exists:
+                cur = conn.execute("SELECT COUNT(*) as cnt FROM animations")
+                total = cur.fetchone()["cnt"]
+                if total >= MAX_CAPACITY:
+                    excess = total - MAX_CAPACITY + 1
+                    cur = conn.execute(f"""
+                        SELECT slug FROM animations 
+                        WHERE slug NOT IN ({','.join('?' for _ in PROTECTED_SLUGS)})
+                        ORDER BY created_at ASC 
+                        LIMIT ?
+                    """, list(PROTECTED_SLUGS) + [excess])
+                    to_evict = [r["slug"] for r in cur.fetchall()]
+                    for ev_slug in to_evict:
+                        conn.execute("DELETE FROM animations WHERE slug = ?", (ev_slug,))
+                        FRAME_CACHE.remove(ev_slug)
+
+            # Insert or update
             conn.execute("""
             INSERT INTO animations (slug, title, fps, width, mode, effect, views, likes, created_at, frames_blob)
             VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
@@ -114,6 +202,8 @@ def save_animation(slug, title, fps, width, mode, effect, frames):
         finally:
             conn.close()
 
+    # Update in-memory LRU cache
+    FRAME_CACHE.put(slug, data_record)
     return data_record
 
 def get_animation(slug):
@@ -160,8 +250,10 @@ def get_animation(slug):
 
 def list_animations(limit=50, offset=0, search=None, sort_by="views"):
     """
-    Returns list of animations with metadata and view counts.
+    Returns list of active animations with metadata and view counts.
+    Strictly capped at max 50 items.
     """
+    limit = min(MAX_CAPACITY, max(1, limit))
     with DB_LOCK:
         conn = get_db_connection()
         try:
@@ -210,19 +302,24 @@ def flush_views_to_db():
             conn.close()
 
 def get_stats():
-    """Returns global platform stats."""
+    """Returns global platform stats and capacity usage."""
     with DB_LOCK:
         conn = get_db_connection()
         try:
             cur = conn.execute("SELECT COUNT(*) as total_count, COALESCE(SUM(views), 0) as total_views FROM animations")
             row = cur.fetchone()
+            cnt = row["total_count"]
             return {
-                "total_animations": row["total_count"],
+                "total_animations": cnt,
                 "total_views": row["total_views"],
+                "capacity": {
+                    "current": cnt,
+                    "max": MAX_CAPACITY,
+                    "available": max(0, MAX_CAPACITY - cnt),
+                }
             }
         finally:
             conn.close()
 
 # Auto-initialize DB on import
 init_db()
-

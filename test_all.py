@@ -118,6 +118,46 @@ def test_static_ui_integrity():
         assert "loadPreview" in js
         assert "copyText" in js
 
+# --- 8. Strict Capacity (Max 50 Slots) & FIFO Eviction ---
+def test_capacity_and_eviction():
+    import db
+    initial_stats = db.get_capacity_stats()
+    assert initial_stats["max"] == 50
+    assert initial_stats["current"] <= 50
+
+    # Test unique slug check
+    assert db.is_slug_taken("art") is True
+    assert db.is_slug_taken("donut") is True
+    assert db.is_slug_taken("definitely-nonexistent-slug-xyz") is False
+
+    # Insert test animations to reach 55 items
+    sample_frames = ["\033[HTest Frame\n"]
+    for i in range(55):
+        s = f"test-cap-{i}"
+        db.save_animation(s, f"Test Cap {i}", 10, 40, "ascii", "test", sample_frames)
+
+    # Verify total does NOT exceed 50
+    stats = db.get_capacity_stats()
+    assert stats["current"] == 50, f"Expected exactly 50 animations, found {stats['current']}"
+    
+    # Verify protected presets are STILL intact
+    assert db.get_animation("art") is not None, "Protected slug 'art' was erroneously evicted!"
+    assert db.get_animation("donut") is not None, "Protected slug 'donut' was erroneously evicted!"
+    assert db.get_animation("fire") is not None, "Protected slug 'fire' was erroneously evicted!"
+
+    # Verify the oldest inserted (test-cap-0) was evicted, and newest (test-cap-54) exists
+    assert db.get_animation("test-cap-0") is None, "Oldest item 'test-cap-0' was not evicted!"
+    assert db.get_animation("test-cap-54") is not None, "Newest item 'test-cap-54' is missing!"
+
+    # Clean up test animations
+    with db.DB_LOCK:
+        conn = db.get_db_connection()
+        try:
+            conn.execute("DELETE FROM animations WHERE slug LIKE 'test-cap-%'")
+            conn.commit()
+        finally:
+            conn.close()
+
 # --- Run All Tests ---
 tests = [
     ("Environment & Core Files", test_environment_and_assets),
@@ -127,6 +167,7 @@ tests = [
     ("Offline CLI Player (play_ascii.py)", test_offline_player),
     ("API Handlers & Tornado Route Manifest", test_api_handlers),
     ("HTML, JS & CSS Integrity", test_static_ui_integrity),
+    ("Strict Capacity (50 Slots) & FIFO Eviction", test_capacity_and_eviction),
 ]
 
 passed = 0

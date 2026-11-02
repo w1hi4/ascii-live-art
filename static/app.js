@@ -84,7 +84,7 @@ function showToast(message) {
   if (toastTimeout) clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => {
     toast.classList.remove("show");
-  }, 2500);
+  }, 2800);
 }
 
 // Global copy helper
@@ -148,12 +148,50 @@ const btnSearchClear = document.getElementById("btnSearchClear");
 const noResultsBox = document.getElementById("noResultsBox");
 const emptyQueryText = document.getElementById("emptyQueryText");
 const btnCreateFromSearch = document.getElementById("btnCreateFromSearch");
+const capacityLabel = document.getElementById("capacityLabel");
+const capacityBar = document.getElementById("capacityBar");
+const slugStatus = document.getElementById("slugStatus");
 
 // Input Controls
 const slugInput = document.getElementById("slugInput");
 const titleInput = document.getElementById("titleInput");
 const modeSelect = document.getElementById("modeSelect");
 const effectSelect = document.getElementById("effectSelect");
+
+// --- Real-time Capacity UI Updater ---
+function updateCapacityUI(capacity) {
+  if (!capacity) return;
+  const current = capacity.current || 0;
+  const max = capacity.max || 50;
+  if (capacityLabel) {
+    capacityLabel.textContent = `${current} / ${max} SLOTS USED`;
+  }
+  if (capacityBar) {
+    const pct = Math.min(100, Math.max(0, (current / max) * 100));
+    capacityBar.style.width = `${pct}%`;
+  }
+}
+
+// --- Live Slug Availability Checker ---
+if (slugInput && slugStatus) {
+  slugInput.addEventListener("input", () => {
+    const raw = slugInput.value.trim().toLowerCase();
+    const clean = raw.replace(/[^a-z0-9_-]/g, "");
+    if (!clean) {
+      slugStatus.textContent = "✓ Auto-generated";
+      slugStatus.className = "slug-status-hint";
+      return;
+    }
+    const isTaken = allAnimations.some(a => a.slug === clean) || ["art", "donut", "fire", "api", "health", "viewer"].includes(clean);
+    if (isTaken) {
+      slugStatus.textContent = "✗ Occupied in 50 slots";
+      slugStatus.className = "slug-status-hint taken";
+    } else {
+      slugStatus.textContent = "✓ Available in 50 slots";
+      slugStatus.className = "slug-status-hint";
+    }
+  });
+}
 
 // --- Animation Loop in Terminal Window ---
 function playFrames(frames, fps = 14) {
@@ -225,6 +263,7 @@ function handleFile(file) {
   const name = file.name.replace(/\.[^/.]+$/, "");
   if (slugInput && !slugInput.value) {
     slugInput.value = name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+    slugInput.dispatchEvent(new Event("input"));
   }
   if (titleInput && !titleInput.value) {
     titleInput.value = name;
@@ -246,8 +285,8 @@ if (btnGenerate) {
       if (selectedFile) {
         formData.append("file", selectedFile);
       }
-      formData.append("slug", slugInput.value || "art");
-      formData.append("title", titleInput.value || "Custom Art");
+      formData.append("slug", slugInput ? slugInput.value : "");
+      formData.append("title", titleInput ? titleInput.value : "");
       formData.append("mode", modeSelect ? modeSelect.value : "halfblock");
       formData.append("effect", effectSelect ? effectSelect.value : "scanner");
       formData.append("width", "54");
@@ -266,17 +305,21 @@ if (btnGenerate) {
         if (shareCurl) shareCurl.textContent = liveCurl;
         if (shareBanner) shareBanner.classList.add("active");
 
-        showToast("Stream created! Ready to run.");
+        showToast("Stream created! Active in top 50 slots.");
+
+        if (result.capacity) {
+          updateCapacityUI(result.capacity);
+        }
 
         // Load new animation into preview
         await loadPreview(result.slug);
         // Refresh streams table
         await loadGallery();
       } else {
-        alert("Upload error: " + (result.error || "Unknown error"));
+        showToast("Error: " + (result.error || "Failed to create stream"));
       }
     } catch (err) {
-      alert("Error: " + err.message);
+      showToast("Network error: " + err.message);
     } finally {
       btnGenerate.disabled = false;
       btnGenerate.innerHTML = originalText;
@@ -390,6 +433,10 @@ async function loadGallery() {
       headerStats.textContent = `${data.stats.total_animations} STREAMS • ONLINE`;
     }
 
+    if (data.capacity) {
+      updateCapacityUI(data.capacity);
+    }
+
     filterAndRenderStreams();
   } catch (e) {
     console.error("Streams load error:", e);
@@ -409,7 +456,7 @@ if (streamSearch) {
     // 1. Instant 0ms Local Memory Filter
     filterAndRenderStreams();
 
-    // 2. Debounced Server Search (for scaling when database has thousands of entries)
+    // 2. Debounced Server Search
     if (serverSearchTimer) clearTimeout(serverSearchTimer);
     if (activeSearchQuery.trim().length >= 2) {
       serverSearchTimer = setTimeout(async () => {
@@ -418,7 +465,6 @@ if (streamSearch) {
           if (res.ok) {
             const data = await res.json();
             if (data.animations && data.animations.length > 0) {
-              // Merge server results into in-memory list
               const existingSlugs = new Set(allAnimations.map(a => a.slug));
               for (let a of data.animations) {
                 if (!existingSlugs.has(a.slug)) {
@@ -450,8 +496,13 @@ if (streamSearch) {
 if (btnCreateFromSearch) {
   btnCreateFromSearch.addEventListener("click", () => {
     const cleanSlug = activeSearchQuery.toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/^-+|-+$/g, "");
-    if (slugInput) slugInput.value = cleanSlug || "my-art";
-    if (titleInput) titleInput.value = (cleanSlug || "My Art").replace("-", " ").toUpperCase();
+    if (slugInput) {
+      slugInput.value = cleanSlug || "my-art";
+      slugInput.dispatchEvent(new Event("input"));
+    }
+    if (titleInput) {
+      titleInput.value = (cleanSlug || "My Art").replace("-", " ").toUpperCase();
+    }
     const creatorSection = document.querySelector(".creator-card");
     if (creatorSection) {
       creatorSection.scrollIntoView({ behavior: "smooth", block: "center" });
