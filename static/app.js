@@ -125,6 +125,12 @@ let animInterval = null;
 let currentFrameIdx = 0;
 let currentFps = 14;
 
+// Cache of all loaded streams for instant zero-latency filtering
+let allAnimations = [];
+let activeFilter = "all";
+let activeSearchQuery = "";
+let serverSearchTimer = null;
+
 // --- DOM Elements ---
 const terminalScreen = document.getElementById("terminalScreen");
 const fileInput = document.getElementById("fileInput");
@@ -136,6 +142,12 @@ const shareCurl = document.getElementById("shareCurl");
 const streamsBody = document.getElementById("streamsBody");
 const headerStats = document.getElementById("headerStats");
 const previewFps = document.getElementById("previewFps");
+const searchResultsCount = document.getElementById("searchResultsCount");
+const streamSearch = document.getElementById("streamSearch");
+const btnSearchClear = document.getElementById("btnSearchClear");
+const noResultsBox = document.getElementById("noResultsBox");
+const emptyQueryText = document.getElementById("emptyQueryText");
+const btnCreateFromSearch = document.getElementById("btnCreateFromSearch");
 
 // Input Controls
 const slugInput = document.getElementById("slugInput");
@@ -259,7 +271,7 @@ if (btnGenerate) {
         // Load new animation into preview
         await loadPreview(result.slug);
         // Refresh streams table
-        loadGallery();
+        await loadGallery();
       } else {
         alert("Upload error: " + (result.error || "Unknown error"));
       }
@@ -272,31 +284,81 @@ if (btnGenerate) {
   });
 }
 
-// --- Fetch & Render Streams Table ---
-async function loadGallery() {
-  if (!streamsBody) return;
-  try {
-    const res = await fetch("/api/list?sort=views");
-    const data = await res.json();
-    streamsBody.innerHTML = "";
+// --- Text Highlighter Utility ---
+function highlightText(text, query) {
+  if (!query) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  return text.replace(regex, `<mark class="search-match">$1</mark>`);
+}
 
-    if (headerStats && data.stats) {
-      headerStats.textContent = `${data.stats.total_animations} STREAMS • ONLINE`;
+// --- Instant Search & Filter Function (0ms Local Execution) ---
+function filterAndRenderStreams() {
+  if (!streamsBody) return;
+
+  const q = activeSearchQuery.trim().toLowerCase();
+  const filter = activeFilter;
+
+  const filtered = allAnimations.filter((item) => {
+    // 1. Tag / Category Filter
+    if (filter === "flagship" && item.effect !== "flagship") return false;
+    if (filter === "3d" && item.effect !== "3d") return false;
+    if (filter === "fire" && item.effect !== "fire") return false;
+    if (filter === "halfblock" && item.mode !== "halfblock") return false;
+
+    // 2. Search Query Matching (slug, title, mode, effect)
+    if (q) {
+      const matchSlug = item.slug.toLowerCase().includes(q);
+      const matchTitle = (item.title || "").toLowerCase().includes(q);
+      const matchMode = (item.mode || "").toLowerCase().includes(q);
+      const matchEffect = (item.effect || "").toLowerCase().includes(q);
+      if (!matchSlug && !matchTitle && !matchMode && !matchEffect) return false;
     }
 
-    const proto = window.location.protocol;
-    const host = window.location.host;
+    return true;
+  });
 
-    for (let item of data.animations) {
-      const liveCmd = `curl -s ${proto}//${host}/${item.slug}`;
-      const modeBadge = item.mode === "halfblock" ? "24-bit Truecolor" : "ASCII Density";
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
+  // Update Result Count Badge
+  if (searchResultsCount) {
+    if (q || filter !== "all") {
+      searchResultsCount.textContent = `${filtered.length} OF ${allAnimations.length} MATCHES`;
+    } else {
+      searchResultsCount.textContent = `${allAnimations.length} STREAMS`;
+    }
+  }
+
+  // Handle Empty State
+  if (filtered.length === 0) {
+    streamsBody.innerHTML = "";
+    if (noResultsBox) {
+      noResultsBox.style.display = "block";
+      if (emptyQueryText) emptyQueryText.textContent = q || filter;
+    }
+    return;
+  }
+
+  if (noResultsBox) {
+    noResultsBox.style.display = "none";
+  }
+
+  // Render Table / Cards
+  const proto = window.location.protocol;
+  const host = window.location.host;
+  let html = "";
+
+  for (let item of filtered) {
+    const liveCmd = `curl -s ${proto}//${host}/${item.slug}`;
+    const modeBadge = item.mode === "halfblock" ? "24-bit Truecolor" : "ASCII Density";
+    const highlightedSlug = highlightText("/" + item.slug, q);
+    const highlightedTitle = highlightText(item.title || item.slug, q);
+
+    html += `
+      <tr>
         <td>
           <a href="/viewer?slug=${item.slug}" class="stream-slug-link">
-            <span>/${item.slug}</span>
+            <span>${highlightedSlug}</span>
           </a>
-          <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">${item.title}</div>
+          <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">${highlightedTitle}</div>
         </td>
         <td>
           <span class="badge-mode">${modeBadge}</span>
@@ -309,13 +371,122 @@ async function loadGallery() {
           <button class="btn-table-copy" onclick="copyText('${liveCmd}')">Copy</button>
           <a href="/viewer?slug=${item.slug}" class="btn-table-view">View</a>
         </td>
-      `;
-      streamsBody.appendChild(tr);
+      </tr>
+    `;
+  }
+
+  streamsBody.innerHTML = html;
+}
+
+// --- Fetch & Populate Streams ---
+async function loadGallery() {
+  try {
+    const res = await fetch("/api/list?sort=views");
+    const data = await res.json();
+
+    allAnimations = data.animations || [];
+
+    if (headerStats && data.stats) {
+      headerStats.textContent = `${data.stats.total_animations} STREAMS • ONLINE`;
     }
+
+    filterAndRenderStreams();
   } catch (e) {
     console.error("Streams load error:", e);
   }
 }
+
+// --- Ultra-Fast Search Listeners ---
+if (streamSearch) {
+  streamSearch.addEventListener("input", (e) => {
+    activeSearchQuery = e.target.value;
+    
+    // Toggle clear button
+    if (btnSearchClear) {
+      btnSearchClear.style.display = activeSearchQuery ? "inline-block" : "none";
+    }
+
+    // 1. Instant 0ms Local Memory Filter
+    filterAndRenderStreams();
+
+    // 2. Debounced Server Search (for scaling when database has thousands of entries)
+    if (serverSearchTimer) clearTimeout(serverSearchTimer);
+    if (activeSearchQuery.trim().length >= 2) {
+      serverSearchTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/list?q=${encodeURIComponent(activeSearchQuery.trim())}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.animations && data.animations.length > 0) {
+              // Merge server results into in-memory list
+              const existingSlugs = new Set(allAnimations.map(a => a.slug));
+              for (let a of data.animations) {
+                if (!existingSlugs.has(a.slug)) {
+                  allAnimations.push(a);
+                }
+              }
+              filterAndRenderStreams();
+            }
+          }
+        } catch (err) {
+          // Ignore network search errors silently
+        }
+      }, 200);
+    }
+  });
+
+  if (btnSearchClear) {
+    btnSearchClear.addEventListener("click", () => {
+      streamSearch.value = "";
+      activeSearchQuery = "";
+      btnSearchClear.style.display = "none";
+      filterAndRenderStreams();
+      streamSearch.focus();
+    });
+  }
+}
+
+// Empty state action button: creates a stream with the search query
+if (btnCreateFromSearch) {
+  btnCreateFromSearch.addEventListener("click", () => {
+    const cleanSlug = activeSearchQuery.toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/^-+|-+$/g, "");
+    if (slugInput) slugInput.value = cleanSlug || "my-art";
+    if (titleInput) titleInput.value = (cleanSlug || "My Art").replace("-", " ").toUpperCase();
+    const creatorSection = document.querySelector(".creator-card");
+    if (creatorSection) {
+      creatorSection.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    if (dropzone) dropzone.focus();
+  });
+}
+
+// Filter pills click handling
+document.querySelectorAll(".filter-pill").forEach((pill) => {
+  pill.addEventListener("click", () => {
+    document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+    pill.classList.add("active");
+    activeFilter = pill.getAttribute("data-filter") || "all";
+    filterAndRenderStreams();
+  });
+});
+
+// Global Keyboard Shortcut: Press '/' anywhere to focus search
+window.addEventListener("keydown", (e) => {
+  const activeEl = document.activeElement;
+  const isInput = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
+
+  if (e.key === "/" && !isInput && streamSearch) {
+    e.preventDefault();
+    streamSearch.focus();
+    streamSearch.select();
+  } else if (e.key === "Escape" && streamSearch && document.activeElement === streamSearch) {
+    streamSearch.value = "";
+    activeSearchQuery = "";
+    if (btnSearchClear) btnSearchClear.style.display = "none";
+    filterAndRenderStreams();
+    streamSearch.blur();
+  }
+});
 
 // Initial setup
 window.addEventListener("DOMContentLoaded", () => {

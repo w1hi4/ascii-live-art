@@ -70,8 +70,10 @@ def test_server_initialization():
     db.record_view("art")
     db.record_view("art")
     db.flush_views_to_db()
-    stats = db.get_stats()
-    assert stats["total_animations"] >= 3
+    # Test search query
+    donut_results = db.list_animations(search="donut")
+    assert len(donut_results) == 1, f"Expected 1 search result for 'donut', got {len(donut_results)}"
+    assert donut_results[0]["slug"] == "donut"
 
 # --- 5. Offline CLI Player ---
 def test_offline_player():

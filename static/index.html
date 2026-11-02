@@ -90,14 +90,36 @@
         </div>
       </div>
 
-      <!-- Available Streams Section -->
+      <!-- Available Streams Section with Ultra-Fast Live Search -->
       <section class="content-section">
-        <div class="section-header">
-          <div class="section-title">
-            <span class="icon">🎬</span>
-            <h2>Available Streams</h2>
+        <div class="section-header-split">
+          <div>
+            <div class="section-title">
+              <span class="icon">🎬</span>
+              <h2>Available Streams</h2>
+            </div>
+            <div class="section-hint">Real-time ASCII streams • Search or filter by slug, effect, or name</div>
           </div>
-          <div class="section-hint">Click command to copy • Click View to preview in CRT</div>
+          <div id="searchResultsCount" class="results-badge">3 STREAMS</div>
+        </div>
+
+        <!-- Ultra-Fast Search Bar & Filter Controls -->
+        <div class="search-container">
+          <div class="search-box-wrapper">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="streamSearch" class="search-input" placeholder="Search streams... (Press '/' to focus)" autocomplete="off" spellcheck="false">
+            <button id="btnSearchClear" class="btn-search-clear" style="display: none;" title="Clear search">✕</button>
+            <span class="search-kbd-hint">/</span>
+          </div>
+
+          <!-- Quick Filter Pills -->
+          <div class="filter-pills">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="flagship">✨ Flagship</button>
+            <button class="filter-pill" data-filter="3d">🍩 3D Math</button>
+            <button class="filter-pill" data-filter="fire">🔥 Inferno Fire</button>
+            <button class="filter-pill" data-filter="halfblock">🎨 Truecolor</button>
+          </div>
         </div>
 
         <!-- Desktop Table / Mobile Responsive Cards -->
@@ -115,6 +137,14 @@
               <!-- Rendered dynamically by app.js -->
             </tbody>
           </table>
+
+          <!-- Empty Search State -->
+          <div id="noResultsBox" class="empty-search-state" style="display: none;">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title">No animations matching "<span id="emptyQueryText"></span>"</div>
+            <div class="empty-subtitle">Want to publish this stream? Create it instantly below!</div>
+            <button id="btnCreateFromSearch" class="btn-empty-action">Create Stream with this Name</button>
+          </div>
         </div>
       </section>
 

@@ -236,7 +236,7 @@ class ApiListHandler(tornado.web.RequestHandler):
     """Paginated, searchable list of animations with view counts."""
     def get(self):
         host = self.request.host
-        search = self.get_query_argument("search", None)
+        search = self.get_query_argument("q", self.get_query_argument("search", None))
         sort_by = self.get_query_argument("sort", "views")
         limit = min(100, max(1, int(self.get_query_argument("limit", "50"))))
         offset = max(0, int(self.get_query_argument("offset", "0")))
