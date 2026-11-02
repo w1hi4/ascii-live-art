@@ -164,7 +164,7 @@ function updateCapacityUI(capacity) {
   const current = capacity.current || 0;
   const max = capacity.max || 50;
   if (capacityLabel) {
-    capacityLabel.textContent = `${current} / ${max} SLOTS USED`;
+    capacityLabel.textContent = `${current} / ${max} SLOTS`;
   }
   if (capacityBar) {
     const pct = Math.min(100, Math.max(0, (current / max) * 100));
@@ -278,7 +278,7 @@ if (btnGenerate) {
   btnGenerate.addEventListener("click", async () => {
     btnGenerate.disabled = true;
     const originalText = btnGenerate.innerHTML;
-    btnGenerate.innerHTML = `<span class="btn-icon">⏳</span><span>Baking Animation...</span>`;
+    btnGenerate.innerHTML = `<span class="btn-spinner"></span><span>Baking Animation...</span>`;
 
     try {
       const formData = new FormData();
@@ -411,8 +411,14 @@ function filterAndRenderStreams() {
           <span class="stream-cmd-inline">${liveCmd}</span>
         </td>
         <td class="actions-cell">
-          <button class="btn-table-copy" onclick="copyText('${liveCmd}')">Copy</button>
-          <a href="/viewer?slug=${item.slug}" class="btn-table-view">View</a>
+          <button class="btn-table-copy" onclick="copyText('${liveCmd}')" aria-label="Copy stream command">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span>Copy</span>
+          </button>
+          <a href="/viewer?slug=${item.slug}" class="btn-table-view" aria-label="View stream on CRT">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <span>Play CRT</span>
+          </a>
         </td>
       </tr>
     `;
@@ -424,14 +430,18 @@ function filterAndRenderStreams() {
 // --- Fetch & Populate Streams ---
 async function loadGallery() {
   try {
+    if (streamsBody && (!allAnimations || allAnimations.length === 0)) {
+      streamsBody.innerHTML = `
+        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+      `;
+    }
+
     const res = await fetch("/api/list?sort=views");
     const data = await res.json();
 
     allAnimations = data.animations || [];
-
-    if (headerStats && data.stats) {
-      headerStats.textContent = `${data.stats.total_animations} STREAMS • ONLINE`;
-    }
 
     if (data.capacity) {
       updateCapacityUI(data.capacity);
@@ -443,25 +453,35 @@ async function loadGallery() {
   }
 }
 
-// --- Ultra-Fast Search Listeners ---
+// --- Ultra-Fast Search Listeners with Professional Debounce ---
+const searchSpinner = document.getElementById("searchSpinner");
+let searchDebounceTimer = null;
+
 if (streamSearch) {
   streamSearch.addEventListener("input", (e) => {
-    activeSearchQuery = e.target.value;
+    const val = e.target.value;
     
     // Toggle clear button
     if (btnSearchClear) {
-      btnSearchClear.style.display = activeSearchQuery ? "inline-block" : "none";
+      btnSearchClear.style.display = val ? "inline-block" : "none";
     }
 
-    // 1. Instant 0ms Local Memory Filter
-    filterAndRenderStreams();
+    if (searchSpinner) searchSpinner.style.display = "inline-block";
 
-    // 2. Debounced Server Search
+    // Instant local filter debounced to prevent stutter
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      activeSearchQuery = val;
+      filterAndRenderStreams();
+      if (searchSpinner) searchSpinner.style.display = "none";
+    }, 150);
+
+    // Debounced Server Search
     if (serverSearchTimer) clearTimeout(serverSearchTimer);
-    if (activeSearchQuery.trim().length >= 2) {
+    if (val.trim().length >= 2) {
       serverSearchTimer = setTimeout(async () => {
         try {
-          const res = await fetch(`/api/list?q=${encodeURIComponent(activeSearchQuery.trim())}`);
+          const res = await fetch(`/api/list?q=${encodeURIComponent(val.trim())}`);
           if (res.ok) {
             const data = await res.json();
             if (data.animations && data.animations.length > 0) {
@@ -476,8 +496,10 @@ if (streamSearch) {
           }
         } catch (err) {
           // Ignore network search errors silently
+        } finally {
+          if (searchSpinner) searchSpinner.style.display = "none";
         }
-      }, 200);
+      }, 250);
     }
   });
 

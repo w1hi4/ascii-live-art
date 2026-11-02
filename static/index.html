@@ -27,10 +27,6 @@
         <span class="brand-title">Live Art Studio</span>
       </div>
       <div class="nav-meta">
-        <div class="status-pill">
-          <span class="status-dot"></span>
-          <span id="headerStats">ENGINE ONLINE</span>
-        </div>
         <a href="https://github.com/w1hi4/ascii-live-art" target="_blank" rel="noopener" class="nav-link" aria-label="GitHub Repository">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           <span class="github-text">GitHub</span>
@@ -48,8 +44,7 @@
           <span class="dot dot-yellow"></span>
           <span class="dot dot-green"></span>
         </div>
-        <div class="window-title">ascii-live-art ~ bash (stream-ready)</div>
-        <div class="window-spec">80x24 • UTF-8</div>
+        <div class="window-title">ascii-live-art ~ stream</div>
       </div>
 
       <!-- Hero Banner (Dual-Mode: Desktop ASCII & Mobile Cyber Typography) -->
@@ -65,10 +60,6 @@
 
         <!-- Mobile Cyber Typography Hero (Zero-Overflow on any phone) -->
         <div class="mobile-brand-hero mobile-only">
-          <div class="hero-brand-pill">
-            <span class="pill-dot"></span>
-            <span>TERMINAL STREAM ENGINE</span>
-          </div>
           <h1 class="mobile-hero-title">ASCII.LIVE</h1>
           <div class="mobile-hero-sub">ART STUDIO</div>
         </div>
@@ -82,7 +73,7 @@
       <div class="hero-cmd-card">
         <div class="cmd-label">
           <span class="pulse-icon">⚡</span>
-          <span>QUICK STREAM • RUN IN ANY SHELL (TERMINAL / CMD / POWERSHELL)</span>
+          <span>RUN IN ANY TERMINAL / SHELL</span>
         </div>
         <div class="cmd-box">
           <div class="cmd-code">
@@ -110,21 +101,19 @@
               <span class="icon">🎬</span>
               <h2>Available Streams</h2>
             </div>
-            <div class="section-hint">Real-time ASCII streams • Search or filter by slug, effect, or name</div>
+            <div class="section-hint">Real-time ASCII streams • Search or filter by name</div>
           </div>
-          <div id="searchResultsCount" class="results-badge">3 STREAMS</div>
         </div>
 
         <!-- SaaS Capacity Retention Meter -->
         <div class="capacity-meter-box">
           <div class="capacity-labels">
-            <span class="cap-title">ACTIVE SLOTS RETENTION</span>
-            <span id="capacityLabel" class="cap-value">3 / 50 SLOTS USED</span>
+            <span class="cap-title">SLOT CAPACITY</span>
+            <span id="capacityLabel" class="cap-value">3 / 50 SLOTS</span>
           </div>
           <div class="capacity-progress-track">
             <div id="capacityBar" class="capacity-progress-fill" style="width: 6%;"></div>
           </div>
-          <div class="capacity-hint">Strict 50-slot capacity • Oldest streams auto-retire to keep active URLs fresh and unique</div>
         </div>
 
         <!-- Ultra-Fast Search Bar & Filter Controls -->
@@ -132,6 +121,7 @@
           <div class="search-box-wrapper">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input type="text" id="streamSearch" class="search-input" placeholder="Search streams... (Press '/' to focus)" autocomplete="off" spellcheck="false">
+            <div id="searchSpinner" class="search-spinner" style="display: none;"></div>
             <button id="btnSearchClear" class="btn-search-clear" style="display: none;" title="Clear search">✕</button>
             <span class="search-kbd-hint">/</span>
           </div>
@@ -190,7 +180,7 @@
               <div id="dropzone" class="dropzone-box" role="button" tabindex="0">
                 <div class="drop-icon">🖼️</div>
                 <div id="dropText" class="drop-title">Drop image or animated GIF here</div>
-                <div class="drop-subtitle">Supports PNG, JPG, WEBP, GIF (Max 15MB) • Click to browse</div>
+                <div class="drop-subtitle">Supports PNG, JPG, WEBP, GIF (Max 8MB) • Click to browse</div>
                 <div class="drop-pills">
                   <span>PNG</span>
                   <span>JPG</span>
@@ -203,7 +193,7 @@
               <div class="form-row">
                 <div class="form-group">
                   <div class="label-row">
-                    <label for="slugInput">Stream Slug (URL Identifier)</label>
+                    <label for="slugInput">Stream Slug</label>
                     <span id="slugStatus" class="slug-status-hint">✓ Available</span>
                   </div>
                   <input type="text" id="slugInput" class="input-ctrl" placeholder="e.g. cyber-wave" autocomplete="off">
@@ -220,8 +210,8 @@
                 <div class="form-group">
                   <label for="modeSelect">Render Engine</label>
                   <select id="modeSelect" class="input-ctrl">
-                    <option value="halfblock" selected>Half-Block 24-bit Truecolor (2x Vert Res)</option>
-                    <option value="ascii">Classic ASCII Character Density</option>
+                    <option value="halfblock" selected>24-bit Truecolor (Half-Block)</option>
+                    <option value="ascii">Classic ASCII Characters</option>
                   </select>
                 </div>
                 <div class="form-group">
