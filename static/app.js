@@ -71,12 +71,59 @@ function ansiToHtml(text) {
   return html;
 }
 
+// --- Toast Notification System ---
+let toastTimeout = null;
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  const msgEl = document.getElementById("toastMsg");
+  if (!toast || !msgEl) return;
+  
+  msgEl.textContent = message;
+  toast.classList.add("show");
+  
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2500);
+}
+
+// Global copy helper
+window.copyText = function(text) {
+  if (!text) return;
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Copied to clipboard: " + text);
+    }).catch(() => {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+};
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand("copy");
+    showToast("Copied to clipboard!");
+  } catch (err) {
+    prompt("Copy command:", text);
+  }
+  document.body.removeChild(ta);
+}
+
 // --- Studio State ---
 let selectedFile = null;
 let activeFrames = [];
 let animInterval = null;
 let currentFrameIdx = 0;
-let currentFps = 12;
+let currentFps = 14;
 
 // --- DOM Elements ---
 const terminalScreen = document.getElementById("terminalScreen");
@@ -88,6 +135,7 @@ const shareBanner = document.getElementById("shareBanner");
 const shareCurl = document.getElementById("shareCurl");
 const streamsBody = document.getElementById("streamsBody");
 const headerStats = document.getElementById("headerStats");
+const previewFps = document.getElementById("previewFps");
 
 // Input Controls
 const slugInput = document.getElementById("slugInput");
@@ -96,10 +144,11 @@ const modeSelect = document.getElementById("modeSelect");
 const effectSelect = document.getElementById("effectSelect");
 
 // --- Animation Loop in Terminal Window ---
-function playFrames(frames, fps = 12) {
+function playFrames(frames, fps = 14) {
   activeFrames = frames;
   currentFps = fps;
   currentFrameIdx = 0;
+  if (previewFps) previewFps.textContent = `${fps} FPS`;
   restartAnimationLoop();
 }
 
@@ -110,7 +159,9 @@ function restartAnimationLoop() {
   const delay = Math.max(20, Math.floor(1000 / currentFps));
   animInterval = setInterval(() => {
     const rawFrame = activeFrames[currentFrameIdx];
-    terminalScreen.innerHTML = ansiToHtml(rawFrame);
+    if (terminalScreen) {
+      terminalScreen.innerHTML = ansiToHtml(rawFrame);
+    }
     currentFrameIdx = (currentFrameIdx + 1) % activeFrames.length;
   }, delay);
 }
@@ -122,14 +173,14 @@ async function loadPreview(slug) {
     if (!res.ok) return;
     const data = await res.json();
     if (data.frames && data.frames.length > 0) {
-      playFrames(data.frames, data.fps || 12);
+      playFrames(data.frames, data.fps || 14);
     }
   } catch (e) {
     console.error("Preview error:", e);
   }
 }
 
-// --- Drag & Drop ---
+// --- Drag & Drop Setup ---
 if (dropzone && fileInput) {
   dropzone.addEventListener("click", () => fileInput.click());
 
@@ -145,13 +196,13 @@ if (dropzone && fileInput) {
   dropzone.addEventListener("drop", (e) => {
     e.preventDefault();
     dropzone.classList.remove("dragover");
-    if (e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleFile(e.dataTransfer.files[0]);
     }
   });
 
   fileInput.addEventListener("change", (e) => {
-    if (e.target.files.length > 0) {
+    if (e.target.files && e.target.files.length > 0) {
       handleFile(e.target.files[0]);
     }
   });
@@ -160,14 +211,14 @@ if (dropzone && fileInput) {
 function handleFile(file) {
   selectedFile = file;
   const name = file.name.replace(/\.[^/.]+$/, "");
-  if (!slugInput.value) {
+  if (slugInput && !slugInput.value) {
     slugInput.value = name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
   }
-  if (!titleInput.value) {
+  if (titleInput && !titleInput.value) {
     titleInput.value = name;
   }
   if (dropText) {
-    dropText.textContent = `Selected: ${file.name}`;
+    dropText.innerHTML = `<strong>Selected:</strong> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
   }
 }
 
@@ -175,7 +226,8 @@ function handleFile(file) {
 if (btnGenerate) {
   btnGenerate.addEventListener("click", async () => {
     btnGenerate.disabled = true;
-    btnGenerate.textContent = "Processing...";
+    const originalText = btnGenerate.innerHTML;
+    btnGenerate.innerHTML = `<span class="btn-icon">⏳</span><span>Baking Animation...</span>`;
 
     try {
       const formData = new FormData();
@@ -184,10 +236,10 @@ if (btnGenerate) {
       }
       formData.append("slug", slugInput.value || "art");
       formData.append("title", titleInput.value || "Custom Art");
-      formData.append("mode", modeSelect.value);
-      formData.append("effect", effectSelect.value);
+      formData.append("mode", modeSelect ? modeSelect.value : "halfblock");
+      formData.append("effect", effectSelect ? effectSelect.value : "scanner");
       formData.append("width", "54");
-      formData.append("fps", "12");
+      formData.append("fps", "14");
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -202,6 +254,8 @@ if (btnGenerate) {
         if (shareCurl) shareCurl.textContent = liveCurl;
         if (shareBanner) shareBanner.classList.add("active");
 
+        showToast("Stream created! Ready to run.");
+
         // Load new animation into preview
         await loadPreview(result.slug);
         // Refresh streams table
@@ -213,7 +267,7 @@ if (btnGenerate) {
       alert("Error: " + err.message);
     } finally {
       btnGenerate.disabled = false;
-      btnGenerate.textContent = "Generate Stream & Get URL";
+      btnGenerate.innerHTML = originalText;
     }
   });
 }
@@ -227,7 +281,7 @@ async function loadGallery() {
     streamsBody.innerHTML = "";
 
     if (headerStats && data.stats) {
-      headerStats.textContent = `${data.stats.total_animations} STREAMS • ${data.stats.total_views} RUNS`;
+      headerStats.textContent = `${data.stats.total_animations} STREAMS • ONLINE`;
     }
 
     const proto = window.location.protocol;
@@ -235,13 +289,25 @@ async function loadGallery() {
 
     for (let item of data.animations) {
       const liveCmd = `curl -s ${proto}//${host}/${item.slug}`;
+      const modeBadge = item.mode === "halfblock" ? "24-bit Truecolor" : "ASCII Density";
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><a href="/viewer?slug=${item.slug}" class="stream-slug">/${item.slug}</a></td>
-        <td><span class="stream-cmd">${liveCmd}</span></td>
+        <td>
+          <a href="/viewer?slug=${item.slug}" class="stream-slug-link">
+            <span>/${item.slug}</span>
+          </a>
+          <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">${item.title}</div>
+        </td>
+        <td>
+          <span class="badge-mode">${modeBadge}</span>
+          <span class="badge-fps">${item.fps || 14} FPS</span>
+        </td>
+        <td>
+          <span class="stream-cmd-inline">${liveCmd}</span>
+        </td>
         <td class="actions-cell">
-          <button class="btn-sm" onclick="copyText('${liveCmd}')">Copy</button>
-          <a href="/viewer?slug=${item.slug}" class="btn-sm" style="text-decoration:none;">View</a>
+          <button class="btn-table-copy" onclick="copyText('${liveCmd}')">Copy</button>
+          <a href="/viewer?slug=${item.slug}" class="btn-table-view">View</a>
         </td>
       `;
       streamsBody.appendChild(tr);
@@ -250,15 +316,6 @@ async function loadGallery() {
     console.error("Streams load error:", e);
   }
 }
-
-// --- Copy helper ---
-window.copyText = function(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    alert("Copied command:\n" + text);
-  }).catch(() => {
-    prompt("Copy command:", text);
-  });
-};
 
 // Initial setup
 window.addEventListener("DOMContentLoaded", () => {

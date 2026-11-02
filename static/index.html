@@ -2,126 +2,229 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ASCII Live Art - Real-Time Terminal Streams</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>ASCII Live Art - Real-Time Terminal Streaming Platform</title>
+  <meta name="description" content="Stream live ANSI and Truecolor ASCII animations directly inside any terminal via curl. High-performance, zero-latency streaming platform and web studio.">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <main class="terminal-shell">
+  <!-- Floating Toast Notification -->
+  <div id="toast" class="toast">
+    <span class="toast-icon">📋</span>
+    <span id="toastMsg" class="toast-msg">Copied command to clipboard!</span>
+  </div>
 
-    <!-- ASCII Logo Header -->
-    <pre class="ascii-banner">
-  ____ ___    _    ____  _     
- / ___|_ _|  / \  |  _ \| |    
-| |    | |  / _ \ | |_) | |    
-| |___ | | / ___ \|  _ <| |___ 
- \____|___/_/   \_\_| \_\_____|
-  ASCII LIVE ART • Stream animations directly into your shell</pre>
-
-    <div class="sub-header">
-      <span>Turn images, GIFs and banners into live streaming terminal art.</span>
-      <span class="status-indicator">
-        <span class="status-dot"></span>
-        <span id="headerStats">LIVE</span>
-      </span>
-    </div>
-
-    <!-- Hero Command Box -->
-    <div class="cmd-hero">
-      <div class="cmd-line">
-        <span class="prompt-symbol">$</span>
-        <span id="heroCmd">curl -s https://ascii-live-art.onrender.com/art</span>
+  <div class="site-container">
+    
+    <!-- Top Nav Header -->
+    <header class="top-nav">
+      <div class="nav-brand">
+        <span class="brand-badge">ASCII.LIVE</span>
+        <span class="brand-title">Live Art Studio</span>
       </div>
-      <button class="btn-sm" onclick="copyText(document.getElementById('heroCmd').textContent)">Copy</button>
-    </div>
+      <div class="nav-meta">
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span id="headerStats">ENGINE ONLINE</span>
+        </div>
+        <a href="https://github.com/w1hi4/ascii-live-art" target="_blank" rel="noopener" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </header>
 
-    <!-- Available Streams Table (Like Real ascii.live) -->
-    <div class="section-title">
-      <span>Available Streams</span>
-    </div>
+    <!-- Main Terminal Shell -->
+    <main class="terminal-shell">
 
-    <table class="streams-table">
-      <thead>
-        <tr>
-          <th>Stream</th>
-          <th>Terminal Command</th>
-          <th style="text-align: right;">Action</th>
-        </tr>
-      </thead>
-      <tbody id="streamsBody">
-        <!-- Rendered dynamically -->
-      </tbody>
-    </table>
+      <!-- Terminal Window Bar -->
+      <div class="window-bar">
+        <div class="window-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <div class="window-title">ascii-live-art ~ bash (stream-ready)</div>
+        <div class="window-spec">80x24 • UTF-8</div>
+      </div>
 
-    <!-- Compact Custom Animation Creator -->
-    <div class="section-title">
-      <span>Create Your Own Stream</span>
-    </div>
+      <!-- ASCII Banner Header -->
+      <div class="banner-wrapper">
+        <pre class="ascii-banner">
+    _    ____   ____ ___ ___   _     _____     _______ 
+   / \  / ___| / ___|_ _|_ _| | |   |_ _\ \   / / ____|
+  / _ \ \___ \| |    | | | |  | |    | | \ \ / /|  _|  
+ / ___ \ ___) | |___ | | | |  | |___ | |  \ V / | |___ 
+/_/   \_\____/ \____|___|___| |_____|___|  \_/  |_____|
+        </pre>
+        <div class="banner-tagline">
+          <strong>ASCII LIVE ART</strong> • Real-time ANSI animation streams directly into your shell
+        </div>
+      </div>
 
-    <div class="creator-card">
-      <div class="compact-grid">
-        <!-- Left: Upload & Config -->
-        <div>
-          <div id="dropzone" class="drop-compact">
-            <div style="color: var(--gold); font-size: 1.25rem;">📁</div>
-            <div id="dropText" style="font-weight: 600; font-size: 0.8rem; margin-top: 0.25rem;">Drop Image or Animated GIF</div>
-            <div style="color: var(--text-dim); font-size: 0.7rem;">or click to select file</div>
-            <input type="file" id="fileInput" accept="image/png, image/jpeg, image/gif, image/webp" style="display: none;">
+      <!-- Hero Command Showcase -->
+      <div class="hero-cmd-card">
+        <div class="cmd-label">
+          <span class="pulse-icon">⚡</span>
+          <span>QUICK STREAM • RUN IN ANY SHELL (TERMINAL / CMD / POWERSHELL)</span>
+        </div>
+        <div class="cmd-box">
+          <div class="cmd-code">
+            <span class="prompt-sym">$</span>
+            <span id="heroCmd" class="cmd-text">curl -s https://ascii-live-art.onrender.com/art</span>
           </div>
+          <div class="cmd-actions">
+            <button class="btn-primary" onclick="copyText(document.getElementById('heroCmd').textContent)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy</span>
+            </button>
+            <a href="/viewer?slug=art" class="btn-secondary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <span>Play CRT</span>
+            </a>
+          </div>
+        </div>
+      </div>
 
-          <div style="margin-top: 0.75rem;">
-            <input type="text" id="slugInput" class="input-ctrl" placeholder="slug (e.g. my-art)">
-            <input type="text" id="titleInput" class="input-ctrl" placeholder="title (e.g. Cyber Pulse)">
+      <!-- Available Streams Section -->
+      <section class="content-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="icon">🎬</span>
+            <h2>Available Streams</h2>
+          </div>
+          <div class="section-hint">Click command to copy • Click View to preview in CRT</div>
+        </div>
+
+        <!-- Desktop Table / Mobile Responsive Cards -->
+        <div class="table-container">
+          <table class="streams-table">
+            <thead>
+              <tr>
+                <th>Stream</th>
+                <th>Mode / Specs</th>
+                <th>Terminal Command</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="streamsBody">
+              <!-- Rendered dynamically by app.js -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Creator Studio Section -->
+      <section class="content-section">
+        <div class="section-header">
+          <div class="section-title">
+            <span class="icon">✨</span>
+            <h2>Create Custom ASCII Stream</h2>
+          </div>
+          <div class="section-hint">Upload any image or animated GIF to generate an instant streamable URL</div>
+        </div>
+
+        <div class="creator-card">
+          <div class="creator-grid">
             
-            <div style="display: flex; gap: 0.5rem;">
-              <select id="modeSelect" class="input-ctrl" style="flex: 1;">
-                <option value="halfblock" selected>Half-Block 24-bit Truecolor (2x Res)</option>
-                <option value="ascii">Classic ASCII Characters</option>
-              </select>
-              <select id="effectSelect" class="input-ctrl" style="flex: 1;">
-                <option value="scanner" selected>⚡ Scanner</option>
-                <option value="pulse">✨ Pulse</option>
-                <option value="matrix">💻 Matrix</option>
-                <option value="glitch">👾 Glitch</option>
-              </select>
+            <!-- Left: Settings & Dropzone -->
+            <div class="creator-form">
+              <div id="dropzone" class="dropzone-box" role="button" tabindex="0">
+                <div class="drop-icon">🖼️</div>
+                <div id="dropText" class="drop-title">Drop image or animated GIF here</div>
+                <div class="drop-subtitle">Supports PNG, JPG, WEBP, GIF (Max 15MB) • Click to browse</div>
+                <input type="file" id="fileInput" accept="image/png, image/jpeg, image/gif, image/webp" style="display: none;">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="slugInput">Stream Slug (URL Identifier)</label>
+                  <input type="text" id="slugInput" class="input-ctrl" placeholder="e.g. cyber-logo">
+                </div>
+                <div class="form-group">
+                  <label for="titleInput">Display Title</label>
+                  <input type="text" id="titleInput" class="input-ctrl" placeholder="e.g. Cyber Shield">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="modeSelect">Render Engine</label>
+                  <select id="modeSelect" class="input-ctrl">
+                    <option value="halfblock" selected>Half-Block 24-bit Truecolor (2x Vert Res)</option>
+                    <option value="ascii">Classic ASCII Character Density</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="effectSelect">Motion Shader / Effect</label>
+                  <select id="effectSelect" class="input-ctrl">
+                    <option value="scanner" selected>⚡ Cyber Laser Scanner</option>
+                    <option value="pulse">✨ Golden Energy Pulse</option>
+                    <option value="matrix">💻 Matrix Rain Waterfall</option>
+                    <option value="glitch">👾 Cyberpunk Glitch & Decrypt</option>
+                  </select>
+                </div>
+              </div>
+
+              <button id="btnGenerate" class="btn-publish">
+                <span class="btn-icon">⚡</span>
+                <span class="btn-label">Bake Stream & Generate Link</span>
+              </button>
+
+              <!-- Success Alert Box -->
+              <div id="shareBanner" class="success-box">
+                <div class="success-header">
+                  <span>🎉 Stream Created Successfully!</span>
+                </div>
+                <div class="success-cmd-bar">
+                  <code id="shareCurl"></code>
+                  <button class="btn-copy-sm" onclick="copyText(document.getElementById('shareCurl').textContent)">Copy</button>
+                </div>
+              </div>
             </div>
 
-            <button id="btnGenerate" class="btn-publish">Generate Stream & Get URL</button>
+            <!-- Right: Real-Time CRT Monitor Preview -->
+            <div class="creator-preview">
+              <div class="preview-header">
+                <div class="preview-title">
+                  <span class="dot-live"></span>
+                  <span>LIVE ANSI CRT PREVIEW</span>
+                </div>
+                <div class="preview-status" id="previewFps">14 FPS</div>
+              </div>
+              <div class="crt-frame">
+                <div id="terminalScreen" class="terminal-screen scanlines">
+                  <!-- Stream renders here -->
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
+      </section>
 
-        <!-- Right: Live Terminal Preview -->
-        <div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.25rem;">
-            <span>Preview (ANSI stream)</span>
-            <span style="color: var(--green);">● STREAMING</span>
-          </div>
-          <div id="terminalScreen" class="preview-box">
-            <!-- ANSI Stream Rendered Here -->
-          </div>
+      <!-- Minimalist Developer Footer -->
+      <footer class="terminal-footer">
+        <div class="footer-links">
+          <span>HTTP Chunked Transfer Encoding</span>
+          <span>•</span>
+          <span>Zero Client Dependencies</span>
+          <span>•</span>
+          <span>SQLite WAL + zlib Compression</span>
+          <span>•</span>
+          <a href="https://github.com/w1hi4/ascii-live-art" target="_blank" rel="noopener">GitHub Source</a>
         </div>
-      </div>
-
-      <!-- Result Banner -->
-      <div id="shareBanner" class="success-box">
-        <div style="color: var(--gold); font-weight: bold; margin-bottom: 0.5rem;">🎉 Stream Created & Live:</div>
-        <div style="display: flex; justify-content: space-between; align-items: center; background: #000; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border);">
-          <code id="shareCurl" style="color: #fff; font-size: 0.8rem; user-select: all;"></code>
-          <button class="btn-sm" onclick="copyText(document.getElementById('shareCurl').textContent)">Copy</button>
+        <div class="footer-copy">
+          Designed for high-performance terminal streaming. MIT License.
         </div>
-      </div>
-    </div>
+      </footer>
 
-    <!-- Minimal Footer -->
-    <footer>
-      Run in any terminal: <code>curl -s &lt;URL&gt;</code> • 100% Open & Lightweight • <a href="https://github.com/w1hi4/ascii-live-art" target="_blank" style="color: var(--gold); text-decoration: none;">GitHub</a>
-    </footer>
-
-  </main>
+    </main>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>
