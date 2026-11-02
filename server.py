@@ -30,25 +30,19 @@ def generate_random_slug(length=6):
 
 def init_default_animations():
     """Initializes default showcase animations in SQLite if not present."""
-    # 1. CIARL Scanner & Pulse
-    if not db.get_animation("ciarl"):
-        ciarl_img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ciarllogo.png")
-        if os.path.exists(ciarl_img_path):
-            print("[INFO] Baking default CIARL animation into database...")
-            img = Image.open(ciarl_img_path)
-            scanner_frames = ascii_engine.generate_scanner_frames(img, width=54, mode="halfblock", num_frames=18)
-            pulse_frames = ascii_engine.generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16)
+    # 1. Flagship ASCII Live Art Stream (/art)
+    if not db.get_animation("art"):
+        print("[INFO] Baking flagship ASCII Live Art animation into database...")
+        art_frames = ascii_engine.generate_flagship_art_frames(num_frames=20)
+        db.save_animation("art", "ASCII Live Art - Cyber Shimmer & Wave", 14, 60, "ascii", "flagship", art_frames)
 
-            db.save_animation("ciarl", "CIARL Cyber Shield - Laser Scanner", 12, 54, "halfblock", "scanner", scanner_frames)
-            db.save_animation("ciarl-pulse", "CIARL Cyber Shield - Golden Energy Pulse", 12, 54, "halfblock", "pulse", pulse_frames)
-
-    # 2. 3D Donut
+    # 2. 3D Donut (/donut)
     if not db.get_animation("donut"):
         print("[INFO] Baking 3D Donut into database...")
         donut_frames = ascii_engine.generate_donut_frames(num_frames=24, width=50, height=22)
         db.save_animation("donut", "3D Mathematical Spinning Donut", 16, 50, "ascii", "3d", donut_frames)
 
-    # 3. Doom Inferno Fire
+    # 3. Doom Inferno Fire (/fire)
     if not db.get_animation("fire"):
         print("[INFO] Baking Doom Inferno Fire into database...")
         w_f, h_f = 50, 20
@@ -101,6 +95,9 @@ def init_default_animations():
 
 def process_uploaded_media(body_bytes, width, mode, effect, contrast, brightness):
     """Worker function executed in thread pool for CPU-heavy frame baking."""
+    if not body_bytes:
+        return ascii_engine.generate_flagship_art_frames(num_frames=20), 14
+
     img = Image.open(BytesIO(body_bytes))
     is_gif = getattr(img, "is_animated", False)
     frames = []
@@ -300,29 +297,17 @@ class ApiUploadHandler(tornado.web.RequestHandler):
             files = self.request.files.get("file")
             frames = []
 
+            body_bytes = None
             if files and len(files) > 0:
                 upload_file = files[0]
                 body_bytes = upload_file["body"]
 
-                # Run heavy image/GIF conversion in worker pool so streaming is never blocked
-                loop = tornado.ioloop.IOLoop.current()
-                frames, fps = await loop.run_in_executor(
-                    EXECUTOR,
-                    process_uploaded_media,
-                    body_bytes, width, mode, effect, contrast, brightness
-                )
-            else:
-                # Default to CIARL logo if no file uploaded
-                ciarl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ciarllogo.png")
-                if os.path.exists(ciarl_path):
-                    with open(ciarl_path, "rb") as f:
-                        body_bytes = f.read()
-                    loop = tornado.ioloop.IOLoop.current()
-                    frames, fps = await loop.run_in_executor(
-                        EXECUTOR,
-                        process_uploaded_media,
-                        body_bytes, width, mode, effect, contrast, brightness
-                    )
+            loop = tornado.ioloop.IOLoop.current()
+            frames, fps = await loop.run_in_executor(
+                EXECUTOR,
+                process_uploaded_media,
+                body_bytes, width, mode, effect, contrast, brightness
+            )
 
             if not frames:
                 self.set_status(400)
@@ -349,24 +334,11 @@ class ApiUploadHandler(tornado.web.RequestHandler):
             self.write({"error": str(e)})
 
 
-class LogoHandler(tornado.web.RequestHandler):
-    """Serves the CIARL logo image."""
-    def get(self):
-        ciarl_img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ciarllogo.png")
-        if os.path.exists(ciarl_img_path):
-            self.set_header("Content-Type", "image/png")
-            with open(ciarl_img_path, "rb") as f:
-                self.write(f.read())
-        else:
-            self.set_status(404)
-
-
 def make_app():
     return tornado.web.Application([
         (r"/", StudioHandler),
         (r"/health", HealthHandler),
         (r"/viewer", ViewerHandler),
-        (r"/static/ciarllogo.png", LogoHandler),
         (r"/api/stats", ApiStatsHandler),
         (r"/api/list", ApiListHandler),
         (r"/api/animation/(.*)", ApiAnimationHandler),
@@ -394,9 +366,9 @@ if __name__ == "__main__":
         try:
             app.listen(p)
             print("=" * 60)
-            print(f" [ASCII.LIVE PRO] Scalable Server running on http://localhost:{p}")
+            print(f" [ASCII LIVE ART] Server running on http://localhost:{p}")
             print(f" -> Web Studio & Generator: http://localhost:{p}/")
-            print(f" -> Stream in Terminal:     curl -s http://localhost:{p}/ciarl")
+            print(f" -> Stream in Terminal:     curl -s http://localhost:{p}/art")
             print("=" * 60)
             break
         except OSError:

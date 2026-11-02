@@ -21,13 +21,56 @@ SIMPLE_CHARS = " .:-=+*#%@"
 BLOCK_CHARS = " ░▒▓█"
 BINARY_CHARS = " 01"
 
+# --- Flagship Animated ASCII Art Banner ---
+
+def generate_flagship_art_frames(num_frames=20):
+    """
+    Procedural flagship animation for ASCII Live Art.
+    Features an oscillating golden shimmer wave with animated audio/equalizer bars.
+    """
+    banner = [
+        "  █████╗ ███████╗ ██████╗██╗██╗    ██╗     ██╗██╗   ██╗███████╗",
+        " ██╔══██╗██╔════╝██╔════╝██║██║    ██║     ██║██║   ██║██╔════╝",
+        " ███████║███████╗██║     ██║██║    ██║     ██║██║   ██║█████╗  ",
+        " ██╔══██║╚════██║██║     ██║██║    ██║     ██║╚██╗ ██╔╝██╔══╝  ",
+        " ██║  ██║███████║╚██████╗██║██║    ███████╗██║ ╚████╔╝ ███████╗",
+        " ╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝╚═╝    ╚══════╝╚═╝  ╚═══╝  ╚══════╝",
+        "      ═══[ A S C I I   L I V E   A R T   S T R E A M ]═══      "
+    ]
+    frames = []
+    w = max(len(line) for line in banner) + 4
+    chars_eq = " ▂▃▄"
+    for k in range(num_frames):
+        phase = (k / num_frames) * 2 * math.pi
+        lines = []
+        border_top = "┌" + "─" * (w - 2) + "┐"
+        border_bot = "└" + "─" * (w - 2) + "┘"
+        lines.append(f"\033[38;2;120;120;140m{border_top}\033[0m")
+        for y, row in enumerate(banner):
+            line = "│ "
+            for x, char in enumerate(row):
+                if char != " ":
+                    r = int(220 + 35 * math.sin(phase + x * 0.15))
+                    g = int(170 + 60 * math.sin(phase + x * 0.15 + 1.0))
+                    b = int(40 + 30 * math.sin(phase + x * 0.15 + 2.0))
+                    line += f"\033[38;2;{r};{g};{b}m{char}\033[0m"
+                else:
+                    line += " "
+            line += " │"
+            lines.append(line)
+        eq_line = "│ "
+        for bar in range(w - 4):
+            val = min(3, max(0, int(abs(math.sin(phase * 1.5 + bar * 0.35)) * 4)))
+            eq_line += f"\033[38;2;56;189;248m{chars_eq[val]}\033[0m"
+        eq_line += " │"
+        lines.append(eq_line)
+        lines.append(f"\033[38;2;120;120;140m{border_bot}\033[0m")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}" + "\n".join(lines) + f"{ANSI_RESET}\n")
+    return frames
+
 # --- Image Conversion to ANSI Frames ---
 
 def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
-    """
-    Renders an RGBA image using Unicode half-blocks (▀ and ▄) in 24-bit Truecolor.
-    Allows 2 vertical pixels per terminal character row for 2x resolution.
-    """
     img = img.convert("RGBA")
     if contrast != 1.0:
         enh = ImageEnhance.Contrast(img)
@@ -95,9 +138,6 @@ def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
 
 
 def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, brightness=1.0):
-    """
-    Renders an RGBA image using ASCII characters with 24-bit Truecolor.
-    """
     img = img.convert("RGBA")
     if contrast != 1.0:
         enh = ImageEnhance.Contrast(img)
@@ -107,7 +147,6 @@ def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, b
         img = enh.enhance(brightness)
 
     orig_w, orig_h = img.size
-    # Character aspect ratio correction (terminal chars are ~2x taller than wide)
     height = int(width * (orig_h / orig_w) * 0.48)
     if height < 1:
         height = 1
@@ -146,42 +185,32 @@ def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, b
 # --- Procedural Animation Generators for Static Images ---
 
 def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
-    """
-    Sweeps a laser scanner beam vertically down across the image.
-    """
     base = img.convert("RGBA")
     w, h = base.size
     frames = []
 
     for k in range(num_frames):
-        # Scanline y position bounces up and down smoothly
         progress = (k / num_frames) * 2 * math.pi
         scan_ratio = 0.5 - 0.5 * math.cos(progress)
         scan_y = int(scan_ratio * h)
 
-        # Create frame image with scanner boost
         frame_img = base.copy()
         pixels = frame_img.load()
-
-        # Beam width in pixels
         band = max(4, int(h * 0.08))
 
         for y in range(h):
             dist = abs(y - scan_y)
             if dist < band:
-                # Add intense laser bloom
                 intensity = 1.0 - (dist / band)
                 boost = int(140 * intensity)
                 for x in range(w):
                     r, g, b, a = pixels[x, y]
                     if a > 30:
-                        # Golden/white laser bloom
                         nr = min(255, r + boost)
                         ng = min(255, g + boost)
                         nb = min(255, b + int(boost * 0.5))
                         pixels[x, y] = (nr, ng, nb, a)
             else:
-                # Slight dimming outside the scan beam for contrast
                 for x in range(w):
                     r, g, b, a = pixels[x, y]
                     if a > 30:
@@ -198,9 +227,6 @@ def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
 
 
 def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
-    """
-    Smoothly pulses brightness, saturation, and golden glow.
-    """
     base = img.convert("RGBA")
     frames = []
 
@@ -218,7 +244,7 @@ def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
                 if a > 30:
                     nr = min(255, int(r * pulse * 1.1))
                     ng = min(255, int(g * pulse * 1.05))
-                    nb = min(255, int(b * pulse * 0.85)) # warmer gold
+                    nb = min(255, int(b * pulse * 0.85))
                     pixels[x, y] = (nr, ng, nb, a)
 
         if mode == "halfblock":
@@ -232,33 +258,25 @@ def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
 
 
 def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
-    """
-    Simulates digital matrix rain cascading around and over the image.
-    """
     base = img.convert("RGBA")
     w, h = base.size
     frames = []
-
-    # Initialize raindrop columns
     drops = [random.randint(0, h) for _ in range(w // 4)]
 
     for k in range(num_frames):
         frame_img = base.copy()
         pixels = frame_img.load()
 
-        # Update drops
         for col_idx in range(len(drops)):
             drops[col_idx] = (drops[col_idx] + int(h * 0.12)) % h
             x_pos = min(w - 1, col_idx * 4 + 2)
             y_head = drops[col_idx]
 
-            # Draw a green/gold digital raindrop trail
             for tail in range(8):
                 y_pos = (y_head - tail) % h
                 intensity = max(0.0, 1.0 - (tail / 8.0))
                 r, g, b, a = pixels[x_pos, y_pos]
                 if a > 30:
-                    # Illuminate existing logo pixels with digital green/gold
                     pixels[x_pos, y_pos] = (
                         min(255, int(r + 100 * intensity)),
                         min(255, int(g + 180 * intensity)),
@@ -277,9 +295,6 @@ def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
 
 
 def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
-    """
-    Produces cyberpunk glitch offsets and digital decrypt effects.
-    """
     base = img.convert("RGBA")
     w, h = base.size
     frames = []
@@ -288,7 +303,6 @@ def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
         frame_img = base.copy()
         pixels = frame_img.load()
 
-        # In some frames, introduce slice displacement glitches
         if k % 3 == 0:
             glitch_y = random.randint(h // 6, h - h // 6)
             glitch_h = random.randint(2, max(3, h // 10))
@@ -313,9 +327,6 @@ def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
 # --- GIF Handler ---
 
 def convert_gif_to_frames(gif_path, width=54, mode="halfblock"):
-    """
-    Extracts every frame of an animated GIF and converts each to ANSI string.
-    """
     gif = Image.open(gif_path)
     frames = []
     durations = []
@@ -340,9 +351,6 @@ def convert_gif_to_frames(gif_path, width=54, mode="halfblock"):
 # --- Donut 3D Math Generator ---
 
 def generate_donut_frames(num_frames=24, width=50, height=22):
-    """
-    Classic Andy Sloane 3D spinning donut rendered into colorful ANSI frames.
-    """
     frames = []
     for k in range(num_frames):
         A = (k / num_frames) * 2 * math.pi
@@ -370,7 +378,6 @@ def generate_donut_frames(num_frames=24, width=50, height=22):
                     z[o] = D
                     idx = max(0, min(11, N))
                     char = ".,-~:;=!*#$@"[idx]
-                    # Cyan/magenta neon color gradient
                     color_code = 196 + idx * 5
                     b[o] = f"\033[38;5;{color_code}m{char}\033[0m"
 
@@ -379,4 +386,3 @@ def generate_donut_frames(num_frames=24, width=50, height=22):
         frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{frame_text}{ANSI_RESET}\n")
 
     return frames
-

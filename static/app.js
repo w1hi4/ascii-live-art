@@ -11,7 +11,6 @@ function ansiToHtml(text) {
   let curFg = null;
   let curBg = null;
 
-  // Split by escape sequences
   const tokens = clean.split(/(\x1b\[[0-9;]*m)/g);
 
   for (let token of tokens) {
@@ -35,15 +34,12 @@ function ansiToHtml(text) {
             }
             i++;
           } else if (parts[i] === 38 && parts[i+1] === 2) {
-            // Truecolor FG: 38;2;r;g;b
             curFg = `rgb(${parts[i+2]},${parts[i+3]},${parts[i+4]})`;
             i += 5;
           } else if (parts[i] === 48 && parts[i+1] === 2) {
-            // Truecolor BG: 48;2;r;g;b
             curBg = `rgb(${parts[i+2]},${parts[i+3]},${parts[i+4]})`;
             i += 5;
           } else if (parts[i] === 38 && parts[i+1] === 5) {
-            // 256-color FG: 38;5;n
             let c = parts[i+2];
             curFg = `hsl(${c * 1.4}, 80%, 60%)`;
             i += 3;
@@ -63,7 +59,6 @@ function ansiToHtml(text) {
         }
       }
     } else {
-      // Normal text
       let escaped = token
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -165,7 +160,7 @@ if (dropzone && fileInput) {
 function handleFile(file) {
   selectedFile = file;
   const name = file.name.replace(/\.[^/.]+$/, "");
-  if (!slugInput.value || slugInput.value === "ciarl") {
+  if (!slugInput.value) {
     slugInput.value = name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
   }
   if (!titleInput.value) {
@@ -175,28 +170,6 @@ function handleFile(file) {
     dropText.textContent = `Selected: ${file.name}`;
   }
 }
-
-// Preset button handlers
-window.loadPreset = function(presetName) {
-  if (presetName === "ciarl") {
-    selectedFile = null;
-    slugInput.value = "ciarl";
-    titleInput.value = "CIARL Cyber Shield";
-    effectSelect.value = "scanner";
-    modeSelect.value = "halfblock";
-    loadPreview("ciarl");
-  } else if (presetName === "donut") {
-    selectedFile = null;
-    slugInput.value = "donut";
-    titleInput.value = "3D Mathematical Donut";
-    loadPreview("donut");
-  } else if (presetName === "fire") {
-    selectedFile = null;
-    slugInput.value = "fire";
-    titleInput.value = "Doom Inferno Fire";
-    loadPreview("fire");
-  }
-};
 
 // --- Publish Animation ---
 if (btnGenerate) {
@@ -209,8 +182,8 @@ if (btnGenerate) {
       if (selectedFile) {
         formData.append("file", selectedFile);
       }
-      formData.append("slug", slugInput.value || "ciarl");
-      formData.append("title", titleInput.value || "CIARL Shield");
+      formData.append("slug", slugInput.value || "art");
+      formData.append("title", titleInput.value || "Custom Art");
       formData.append("mode", modeSelect.value);
       formData.append("effect", effectSelect.value);
       formData.append("width", "54");
@@ -245,7 +218,7 @@ if (btnGenerate) {
   });
 }
 
-// --- Fetch & Render Streams Table (Like ascii.live) ---
+// --- Fetch & Render Streams Table ---
 async function loadGallery() {
   if (!streamsBody) return;
   try {
@@ -281,22 +254,19 @@ async function loadGallery() {
 // --- Copy helper ---
 window.copyText = function(text) {
   navigator.clipboard.writeText(text).then(() => {
-    alert("Copied to clipboard:\n" + text);
+    alert("Copied command:\n" + text);
   }).catch(() => {
-    prompt("Copy this command:", text);
+    prompt("Copy command:", text);
   });
 };
 
 // Initial setup
 window.addEventListener("DOMContentLoaded", () => {
-  // Update hero command with actual host/protocol
   const heroCmd = document.getElementById("heroCmd");
   if (heroCmd) {
     const proto = window.location.protocol;
-    heroCmd.textContent = `curl -s ${proto}//${window.location.host}/ciarl`;
+    heroCmd.textContent = `curl -s ${proto}//${window.location.host}/art`;
   }
-  // Preload CIARL animation in preview terminal
-  loadPreview("ciarl");
+  loadPreview("art");
   loadGallery();
 });
-

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ascii.live/ciarl - Real-Time Terminal Streams</title>
+  <title>ASCII Live Art - Real-Time Terminal Streams</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,10 +20,10 @@
 | |    | |  / _ \ | |_) | |    
 | |___ | | / ___ \|  _ <| |___ 
  \____|___/_/   \_\_| \_\_____|
-  ASCII.LIVE • Terminal Streaming Platform</pre>
+  ASCII LIVE ART • Stream animations directly into your shell</pre>
 
     <div class="sub-header">
-      <span>Stream live animations directly into your shell.</span>
+      <span>Turn images, GIFs and banners into live streaming terminal art.</span>
       <span class="status-indicator">
         <span class="status-dot"></span>
         <span id="headerStats">LIVE</span>
@@ -34,7 +34,7 @@
     <div class="cmd-hero">
       <div class="cmd-line">
         <span class="prompt-symbol">$</span>
-        <span id="heroCmd">curl -s http://localhost:8090/ciarl</span>
+        <span id="heroCmd">curl -s https://ascii-live-art.onrender.com/art</span>
       </div>
       <button class="btn-sm" onclick="copyText(document.getElementById('heroCmd').textContent)">Copy</button>
     </div>
@@ -74,8 +74,8 @@
           </div>
 
           <div style="margin-top: 0.75rem;">
-            <input type="text" id="slugInput" class="input-ctrl" placeholder="slug (e.g. my-logo)">
-            <input type="text" id="titleInput" class="input-ctrl" placeholder="title (e.g. My Logo)">
+            <input type="text" id="slugInput" class="input-ctrl" placeholder="slug (e.g. my-art)">
+            <input type="text" id="titleInput" class="input-ctrl" placeholder="title (e.g. Cyber Pulse)">
             
             <div style="display: flex; gap: 0.5rem;">
               <select id="modeSelect" class="input-ctrl" style="flex: 1;">
@@ -118,7 +118,7 @@
 
     <!-- Minimal Footer -->
     <footer>
-      Run in any terminal: <code>curl -s &lt;URL&gt;</code> • 100% Open & Lightweight • <a href="https://github.com" target="_blank" style="color: var(--gold); text-decoration: none;">GitHub</a>
+      Run in any terminal: <code>curl -s &lt;URL&gt;</code> • 100% Open & Lightweight • <a href="https://github.com/w1hi4/ascii-live-art" target="_blank" style="color: var(--gold); text-decoration: none;">GitHub</a>
     </footer>
 
   </main>

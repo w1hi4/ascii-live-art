@@ -34,7 +34,7 @@ Render gives you **750 free hours every month** (enough to run 24/7) with free a
 In ~2 minutes, your live URL will be active:
 ```bash
 # Anyone in the world can now run:
-curl -s https://ascii-live-pro.onrender.com/ciarl
+curl -s https://ascii-live-pro.onrender.com/art
 ```
 
 ---
@@ -51,7 +51,7 @@ Koyeb offers high-performance free edge hosting with native chunked streaming.
 5. Choose the **Free Eco (Nano)** instance.
 6. Click **"Deploy"**.
 
-Your live URL: `https://<your-app>.koyeb.app/ciarl`
+Your live URL: `https://<your-app>.koyeb.app/art`
 
 ---
 
@@ -74,10 +74,10 @@ Want to give a friend a live link **right now** directly from your computer with
 
 1. Make sure your local server is running (`start.bat`).
 2. Double-click [`instant_public_tunnel.bat`](file:///d:/KAWACH%20AI/instant_public_tunnel.bat).
-3. It opens an instant free SSH tunnel via `serveo.net` and gives you a temporary HTTPS URL (e.g., `https://ciarl-stream.serveo.net`).
+3. It opens an instant free SSH tunnel via `serveo.net` and gives you a temporary HTTPS URL (e.g., `https://live-stream.serveo.net`).
 4. Anyone can run:
    ```bash
-   curl -s https://<assigned-url>.serveo.net/ciarl
+   curl -s https://<assigned-url>.serveo.net/art
    ```
 
 ---

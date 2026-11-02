@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-CLI Terminal Player for ASCII.LIVE animations.
+CLI Terminal Player for ASCII Live Art animations.
 Usage:
-    python play_ascii.py ciarl
+    python play_ascii.py art
     python play_ascii.py donut
     python play_ascii.py fire
 """
@@ -14,39 +14,27 @@ import json
 import tempfile
 
 import ascii_engine
-from PIL import Image
+import db
 
-def get_animation_frames(name="ciarl"):
+def get_animation_frames(name="art"):
     name = name.strip("/").lower()
 
-    # 1. Check temp cache
-    temp_path = os.path.join(tempfile.gettempdir(), "ascii_live_animations", f"{name}.json")
-    if os.path.exists(temp_path):
-        with open(temp_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("frames", []), data.get("fps", 12), data.get("title", name)
+    # 1. Check SQLite / LRU cache
+    anim = db.get_animation(name)
+    if anim:
+        return anim.get("frames", []), anim.get("fps", 14), anim.get("title", name)
 
-    # 2. Check local animations folder
-    local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "animations", f"{name}.json")
-    if os.path.exists(local_path):
-        with open(local_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("frames", []), data.get("fps", 12), data.get("title", name)
-
-    # 3. Dynamic generation
-    if name == "ciarl":
-        img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ciarllogo.png")
-        if os.path.exists(img_path):
-            img = Image.open(img_path)
-            frames = ascii_engine.generate_scanner_frames(img, width=54, mode="halfblock", num_frames=18)
-            return frames, 12, "CIARL Cyber Shield - Laser Scanner"
+    # 2. Dynamic generation fallback
+    if name == "art":
+        frames = ascii_engine.generate_flagship_art_frames(num_frames=20)
+        return frames, 14, "ASCII Live Art - Cyber Shimmer & Wave"
     elif name == "donut":
         frames = ascii_engine.generate_donut_frames(num_frames=24, width=50, height=22)
         return frames, 16, "3D Mathematical Spinning Donut"
 
     return [], 12, name
 
-def play(name="ciarl"):
+def play(name="art"):
     try:
         sys.stdout.reconfigure(encoding='utf-8')
     except Exception:
@@ -54,7 +42,7 @@ def play(name="ciarl"):
     frames, fps, title = get_animation_frames(name)
     if not frames:
         print(f"Error: Animation '{name}' not found.")
-        print("Available: ciarl, ciarl-pulse, donut, fire")
+        print("Available: art, donut, fire")
         return
 
     delay = 1.0 / max(1, fps)
@@ -78,5 +66,5 @@ def play(name="ciarl"):
         sys.stdout.flush()
 
 if __name__ == "__main__":
-    anim_name = sys.argv[1] if len(sys.argv) > 1 else "ciarl"
+    anim_name = sys.argv[1] if len(sys.argv) > 1 else "art"
     play(anim_name)

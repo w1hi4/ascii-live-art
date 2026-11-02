@@ -1,21 +1,21 @@
 <div align="center">
 
 ```
-  ____ ___    _    ____  _     
- / ___|_ _|  / \  |  _ \| |    
-| |    | |  / _ \ | |_) | |    
-| |___ | | / ___ \|  _ <| |___ 
- \____|___/_/   \_\_| \_\_____|
+    _    ____   ____ ___ ___   _     _____     _______      _    ____ _____ 
+   / \  / ___| / ___|_ _|_ _| | |   |_ _\ \   / / ____|    / \  |  _ \_   _|
+  / _ \ \___ \| |    | | | |  | |    | | \ \ / /|  _|     / _ \ | |_) || |  
+ / ___ \ ___) | |___ | | | |  | |___ | |  \ V / | |___   / ___ \|  _ < | |  
+/_/   \_\____/ \____|___|___| |_____|___|  \_/  |_____| /_/   \_\_| \_\|_|  
 ```
 
-# 🛡️ ASCII.LIVE PRO
+# ✨ ASCII Live Art
 ### Real-Time Terminal Animation Streaming Platform & Web Studio
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg?logo=python&logoColor=white)](https://python.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://docker.com)
 [![Go 1.22+](https://img.shields.io/badge/Go-Edge_Streamer-00ADD8.svg?logo=go&logoColor=white)](https://golang.org)
-[![Tests](https://img.shields.io/badge/Tests-9%2F9_Passed-brightgreen.svg)](#-automated-testing)
+[![Tests](https://img.shields.io/badge/Tests-7%2F7_Passed-brightgreen.svg)](#-automated-testing)
 
 An ultra-scalable, production-grade terminal streaming service inspired by `ascii.live` and `parrot.live`.<br>
 Streams live ANSI animations directly to any terminal with zero client-side installation.
@@ -31,11 +31,8 @@ Streams live ANSI animations directly to any terminal with zero client-side inst
 Stream live ASCII animations directly inside your shell:
 
 ```bash
-# 🛡️ CIARL Cyber Shield - Quantum Laser Scanner
-curl -s https://ascii-live-art.onrender.com/ciarl
-
-# ✨ CIARL Cyber Shield - Golden Energy Pulse
-curl -s https://ascii-live-art.onrender.com/ciarl-pulse
+# ✨ ASCII Live Art - Flagship Shimmer Banner
+curl -s https://ascii-live-art.onrender.com/art
 
 # 🍩 3D Mathematical Spinning Donut
 curl -s https://ascii-live-art.onrender.com/donut
@@ -52,11 +49,11 @@ curl -s https://ascii-live-art.onrender.com/fire
 
 * **Terminal-First Streaming:** Pure chunked HTTP transfer encoding (`Transfer-Encoding: chunked`) with zero-latency cursor control (`\033[H`).
 * **Half-Block 24-bit Truecolor (`▀`/`▄`):** Uses Unicode upper and lower half-blocks with dual RGB foreground/background color codes for **2x vertical resolution**.
-* **Procedural Mathematical Shaders:**
-  * ⚡ **Cyber Laser Scanner:** Vertical sweep with luminance bloom on edges and circuit traces.
-  * ✨ **Golden Energy Pulse:** Harmonic breathing rhythm with metallic gold saturation.
-  * 💻 **Matrix Rain Stream:** Digital code waterfall cascading through the logo.
-  * 👾 **Cyberpunk Glitch & Decrypt:** Algorithmic slice displacement and noise decryption.
+* **Procedural Mathematical Shaders & Generators:**
+  * ✨ **Flagship Banner:** Oscillating golden shimmer wave with animated audio equalizer bars.
+  * 🍩 **3D Donut Engine:** Torus raycasting with real-time luminance shading.
+  * 🔥 **Doom Inferno Fire:** Demoscene cellular fire simulation with smooth palette blending.
+  * ⚡ **Cyber Laser Scanner & Glitch:** Algorithmic slice displacement and noise decryption.
 * **Storage Built for Millions:**
   * **SQLite WAL Engine:** Operates in Write-Ahead-Logging mode with memory-mapped I/O.
   * **`zlib` Frame Compression:** Frames compressed at Level 6 (**~84% size reduction**). Storing 1,000,000 animations takes ~35 GB instead of 600 GB.
@@ -70,8 +67,7 @@ curl -s https://ascii-live-art.onrender.com/fire
 
 | Slug | Animation Name | Mode | FPS | Command |
 | :--- | :--- | :--- | :--- | :--- |
-| `/ciarl` | **CIARL Cyber Shield** | Half-Block (24-bit Truecolor) | 12 | `curl -s https://ascii-live-art.onrender.com/ciarl` |
-| `/ciarl-pulse` | **Golden Energy Pulse** | Half-Block (24-bit Truecolor) | 12 | `curl -s https://ascii-live-art.onrender.com/ciarl-pulse` |
+| `/art` | **ASCII Live Art (Flagship)** | Truecolor Shimmer Banner | 15 | `curl -s https://ascii-live-art.onrender.com/art` |
 | `/donut` | **3D Spinning Donut** | ASCII Character Density | 16 | `curl -s https://ascii-live-art.onrender.com/donut` |
 | `/fire` | **Doom Inferno Fire** | 256-Color Palette | 15 | `curl -s https://ascii-live-art.onrender.com/fire` |
 
@@ -113,7 +109,7 @@ This repository is configured out-of-the-box for **100% Free 24/7 Cloud Hosting*
 2. Go to **[Render.com](https://render.com)** → **New Web Service** → Select this repo.
 3. Render reads [`render.yaml`](render.yaml) automatically and provisions a free instance with automatic HTTPS:
    ```bash
-   curl -s https://your-service.onrender.com/ciarl
+   curl -s https://your-service.onrender.com/art
    ```
 
 ### 2. Koyeb / Fly.io / Hugging Face Spaces
@@ -151,8 +147,7 @@ Run the included tunnel script on your machine:
 You can run and preview animations directly in your terminal without starting the HTTP server:
 
 ```bash
-python play_ascii.py ciarl
-python play_ascii.py ciarl-pulse
+python play_ascii.py art
 python play_ascii.py donut
 python play_ascii.py fire
 ```
@@ -168,19 +163,17 @@ python test_all.py
 ```
 ```
 =================================================================
- ASCII.LIVE PRO - COMPLETE COMPONENT & INTEGRATION TEST SUITE
+ ASCII LIVE ART - COMPLETE TEST SUITE
 =================================================================
 [*] Testing Environment & Core Files................... PASSED
-[*] Testing Half-Block 24-bit Truecolor Renderer....... PASSED
-[*] Testing ASCII Character Density Converter.......... PASSED
-[*] Testing Procedural Shaders (Scanner/Pulse/Glitch).. PASSED
+[*] Testing Flagship Art Banner Generator.............. PASSED
 [*] Testing 3D Mathematical Donut Engine............... PASSED
-[*] Testing Server Registry & Default Presets.......... PASSED
+[*] Testing Server In-Memory Registry & Default Presets PASSED
 [*] Testing Offline CLI Player (play_ascii.py)......... PASSED
 [*] Testing API Handlers & Tornado Route Manifest...... PASSED
 [*] Testing HTML, JS & CSS Integrity................... PASSED
 =================================================================
- RESULT: 9/9 TESTS PASSED (100% SUCCESS)
+ RESULT: 7/7 TESTS PASSED (100%)
 =================================================================
 ```
 
@@ -188,6 +181,6 @@ python test_all.py
 
 ## 📄 License
 
-Distributed under the **MIT License**. See `LICENSE` for details.
+Distributed under the **MIT License**.
 
 Developed with ❤️ for the terminal art and demoscene community.

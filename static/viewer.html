@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CRT Terminal Player - ASCII.LIVE</title>
+  <title>CRT Terminal Player - ASCII Live Art</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
@@ -105,12 +105,10 @@
       pointer-events: none;
     }
 
-    /* CRT Phosphor Glow */
     .crt-glow {
       text-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
     }
 
-    /* Bottom Control Bar */
     .bottom-bar {
       display: flex;
       justify-content: space-between;
@@ -143,8 +141,8 @@
 
   <!-- Top Action Bar -->
   <div class="action-bar">
-    <a href="/" class="btn-action">← Studio</a>
-    <div class="cmd-box" id="curlCmd">curl -s http://localhost:8080/ciarl</div>
+    <a href="/" class="btn-action">← Home</a>
+    <div class="cmd-box" id="curlCmd">curl -s https://ascii-live-art.onrender.com/art</div>
     <button class="btn-action" onclick="copyCurl()">📋 Copy curl</button>
     <button class="btn-action" id="btnPause" onclick="togglePlay()">⏸️ Pause</button>
     <button class="btn-action" onclick="toggleScanlines()">📺 Scanlines</button>
@@ -164,7 +162,7 @@
   <script src="/static/app.js"></script>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const slug = urlParams.get('slug') || 'ciarl';
+    const slug = urlParams.get('slug') || 'art';
     const display = document.getElementById('crtDisplay');
     const curlCmd = document.getElementById('curlCmd');
     const frameMeta = document.getElementById('frameMeta');
@@ -177,7 +175,8 @@
     let isPlaying = true;
 
     async function initViewer() {
-      curlCmd.textContent = `curl -s http://${window.location.host}/${slug}`;
+      const proto = window.location.protocol;
+      curlCmd.textContent = `curl -s ${proto}//${window.location.host}/${slug}`;
       try {
         const res = await fetch(`/api/animation/${slug}`);
         if (!res.ok) {
@@ -230,4 +229,3 @@
   </script>
 </body>
 </html>
-
