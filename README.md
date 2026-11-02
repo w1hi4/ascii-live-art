@@ -32,19 +32,19 @@ Stream live ASCII animations directly inside your shell:
 
 ```bash
 # 🛡️ CIARL Cyber Shield - Quantum Laser Scanner
-curl -s http://localhost:8090/ciarl
+curl -s https://ascii-live-art.onrender.com/ciarl
 
 # ✨ CIARL Cyber Shield - Golden Energy Pulse
-curl -s http://localhost:8090/ciarl-pulse
+curl -s https://ascii-live-art.onrender.com/ciarl-pulse
 
 # 🍩 3D Mathematical Spinning Donut
-curl -s http://localhost:8090/donut
+curl -s https://ascii-live-art.onrender.com/donut
 
 # 🔥 Demoscene Doom Inferno Fire
-curl -s http://localhost:8090/fire
+curl -s https://ascii-live-art.onrender.com/fire
 ```
 
-*(Visiting the URL in a browser automatically opens the embedded **Retro CRT Web Player**).*
+*(Visiting [https://ascii-live-art.onrender.com](https://ascii-live-art.onrender.com) in any browser opens the live compact studio & CRT player).*
 
 ---
 
@@ -70,10 +70,10 @@ curl -s http://localhost:8090/fire
 
 | Slug | Animation Name | Mode | FPS | Command |
 | :--- | :--- | :--- | :--- | :--- |
-| `/ciarl` | **CIARL Cyber Shield** | Half-Block (24-bit Truecolor) | 12 | `curl -s http://localhost:8090/ciarl` |
-| `/ciarl-pulse` | **Golden Energy Pulse** | Half-Block (24-bit Truecolor) | 12 | `curl -s http://localhost:8090/ciarl-pulse` |
-| `/donut` | **3D Spinning Donut** | ASCII Character Density | 16 | `curl -s http://localhost:8090/donut` |
-| `/fire` | **Doom Inferno Fire** | 256-Color Palette | 15 | `curl -s http://localhost:8090/fire` |
+| `/ciarl` | **CIARL Cyber Shield** | Half-Block (24-bit Truecolor) | 12 | `curl -s https://ascii-live-art.onrender.com/ciarl` |
+| `/ciarl-pulse` | **Golden Energy Pulse** | Half-Block (24-bit Truecolor) | 12 | `curl -s https://ascii-live-art.onrender.com/ciarl-pulse` |
+| `/donut` | **3D Spinning Donut** | ASCII Character Density | 16 | `curl -s https://ascii-live-art.onrender.com/donut` |
+| `/fire` | **Doom Inferno Fire** | 256-Color Palette | 15 | `curl -s https://ascii-live-art.onrender.com/fire` |
 
 ---
 
