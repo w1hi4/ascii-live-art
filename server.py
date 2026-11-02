@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 import time
 import math
@@ -7,6 +8,7 @@ import random
 import asyncio
 import tempfile
 import string
+import threading
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
@@ -23,7 +25,45 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 # Thread pool for non-blocking image/GIF conversion
 EXECUTOR = ThreadPoolExecutor(max_workers=4)
 
-RESERVED_SLUGS = frozenset(["api", "health", "viewer", "static", "favicon", "favicon.ico", "art", "donut", "fire"])
+RESERVED_SLUGS = frozenset([
+    "api", "health", "viewer", "static", "favicon", "favicon.ico", 
+    "art", "donut", "fire", "admin", "login", "root", "system"
+])
+
+# --- Security: Rate Limiting Engine ---
+
+class RateLimiter:
+    """Thread-safe sliding-window IP rate limiter to protect against DoS and spam."""
+    def __init__(self, max_requests, window_seconds):
+        self.max_requests = max_requests
+        self.window = window_seconds
+        self.history = {}
+        self.lock = threading.Lock()
+
+    def is_allowed(self, ip):
+        now = time.time()
+        with self.lock:
+            timestamps = self.history.get(ip, [])
+            cutoff = now - self.window
+            valid = [t for t in timestamps if t > cutoff]
+            if len(valid) >= self.max_requests:
+                self.history[ip] = valid
+                return False
+            valid.append(now)
+            self.history[ip] = valid
+            return True
+
+UPLOAD_LIMITER = RateLimiter(max_requests=6, window_seconds=300) # 6 uploads per 5 mins per IP
+API_LIMITER = RateLimiter(max_requests=180, window_seconds=60)   # 180 requests per min per IP
+
+def get_client_ip(handler):
+    """Safely extracts real client IP behind reverse proxies (Render, Cloudflare, Nginx)."""
+    x_forwarded = handler.request.headers.get("X-Forwarded-For")
+    if x_forwarded:
+        return x_forwarded.split(",")[0].strip()
+    return handler.request.headers.get("X-Real-IP", handler.request.remote_ip or "127.0.0.1")
+
+# --- Security: Slug Generator & Validator ---
 
 def generate_random_slug(length=6):
     """Generates a clean, unique, URL-friendly slug."""
@@ -58,28 +98,22 @@ def init_default_animations():
     if not db.get_animation("fire"):
         print("[INFO] Baking Doom Inferno Fire into database...")
         w_f, h_f = 50, 20
+        chars_fire = " .:-=+*#%@"
         palette = [
-            (0,0,0), (7,7,7), (31,7,7), (47,15,7), (71,15,7), (87,23,7), (103,31,7), (119,31,7),
-            (143,39,7), (159,47,7), (175,63,7), (191,71,7), (199,71,7), (223,79,7), (223,87,7),
-            (223,87,7), (215,95,7), (215,103,15), (207,111,15), (207,119,15), (207,127,15),
-            (207,135,23), (199,135,23), (199,143,23), (199,151,31), (191,159,31), (191,159,31),
-            (191,167,39), (191,167,39), (191,175,47), (183,175,47), (183,183,47), (183,183,55),
-            (207,207,111), (223,223,159), (239,239,199), (255,255,255)
+            (0, 0, 0), (7, 7, 7), (31, 7, 7), (47, 15, 7),
+            (71, 15, 7), (87, 23, 7), (103, 31, 7), (119, 31, 7),
+            (143, 39, 7), (159, 47, 7), (175, 63, 7), (191, 71, 7),
+            (199, 71, 7), (223, 79, 7), (223, 87, 7), (223, 87, 7),
+            (215, 95, 7), (215, 103, 15), (207, 111, 15), (207, 119, 15),
+            (207, 127, 15), (207, 135, 23), (199, 135, 23), (199, 143, 23),
+            (199, 151, 31), (191, 159, 31), (191, 159, 31), (191, 167, 39),
+            (191, 167, 39), (191, 175, 47), (183, 175, 47), (183, 183, 47),
+            (183, 183, 55), (207, 207, 111), (223, 223, 159), (239, 239, 199),
+            (255, 255, 255)
         ]
         fire_buf = [0] * (w_f * h_f)
         for x in range(w_f): fire_buf[(h_f - 1) * w_f + x] = 36
-        for _ in range(50):
-            for x in range(w_f):
-                for y in range(1, h_f):
-                    src = y * w_f + x
-                    p = fire_buf[src]
-                    if p > 0:
-                        rnd = random.randint(0, 3) & 3
-                        dst = src - rnd + 1
-                        if w_f <= dst < w_f * h_f: fire_buf[dst - w_f] = max(0, p - (rnd & 1))
-        
         fire_frames = []
-        chars_fire = " .:-=+*#%@█"
         for _ in range(24):
             for x in range(w_f):
                 for y in range(1, h_f):
@@ -87,7 +121,7 @@ def init_default_animations():
                     p = fire_buf[src]
                     if p == 0: fire_buf[src - w_f] = 0
                     else:
-                        rnd = random.randint(0, 3) & 3
+                        rnd = random.randint(0, 3)
                         dst = src - rnd + 1
                         if w_f <= dst < w_f * h_f: fire_buf[dst - w_f] = max(0, p - (rnd & 1))
             lines = []
@@ -104,28 +138,76 @@ def init_default_animations():
 
         db.save_animation("fire", "Demoscene Doom Inferno Fire", 15, 50, "ascii", "fire", fire_frames)
 
+# --- Security: Magic Byte & Image Payload Validation ---
+
+def validate_image_payload(body_bytes):
+    """
+    Validates magic bytes, file integrity, and dimensions.
+    Rejects scripts, SVGs, polyglots, and decompression bombs.
+    """
+    if not body_bytes or len(body_bytes) < 8:
+        raise ValueError("Invalid file content: empty or truncated file.")
+    
+    if len(body_bytes) > 8 * 1024 * 1024:
+        raise ValueError("File exceeds maximum allowed size (8MB).")
+
+    is_png = body_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    is_jpeg = body_bytes.startswith(b"\xff\xd8\xff")
+    is_gif = body_bytes.startswith(b"GIF87a") or body_bytes.startswith(b"GIF89a")
+    is_webp = body_bytes.startswith(b"RIFF") and len(body_bytes) > 12 and body_bytes[8:12] == b"WEBP"
+
+    if not (is_png or is_jpeg or is_gif or is_webp):
+        raise ValueError("Unsupported file format. Only genuine PNG, JPG, GIF, and WEBP files are permitted.")
+
+    # Integrity check with Pillow verify
+    try:
+        verify_img = Image.open(BytesIO(body_bytes))
+        verify_img.verify()
+    except Exception:
+        raise ValueError("Corrupted or malformed image data.")
+
+    # Re-open after verify
+    img = Image.open(BytesIO(body_bytes))
+    w, h = img.size
+    if w > 3000 or h > 3000:
+        raise ValueError(f"Image dimensions ({w}x{h}) exceed maximum allowed 3000x3000 limit.")
+    if w < 2 or h < 2:
+        raise ValueError("Image dimensions are too small.")
+
+    return img, is_gif
 
 def process_uploaded_media(body_bytes, width, mode, effect, contrast, brightness):
-    """Worker function executed in thread pool for CPU-heavy frame baking."""
+    """Worker function executed in thread pool for CPU-heavy frame baking with security bounds."""
     if not body_bytes:
         return ascii_engine.generate_flagship_art_frames(num_frames=20), 14
 
-    img = Image.open(BytesIO(body_bytes))
-    is_gif = getattr(img, "is_animated", False)
+    img, is_gif = validate_image_payload(body_bytes)
     frames = []
-    fps = 12
+    fps = 14
+
+    # Sanitize and clamp numeric parameters
+    width = max(20, min(100, int(width)))
+    contrast = max(0.2, min(3.0, float(contrast)))
+    brightness = max(0.2, min(3.0, float(brightness)))
+    mode = mode if mode in ("halfblock", "ascii") else "halfblock"
+    effect = effect if effect in ("scanner", "pulse", "matrix", "glitch") else "scanner"
 
     if is_gif:
-        tmp_gif = os.path.join(tempfile.gettempdir(), f"upload_{time.time()}.gif")
-        with open(tmp_gif, "wb") as f_out:
-            f_out.write(body_bytes)
-        frames, gif_delay = ascii_engine.convert_gif_to_frames(tmp_gif, width=width, mode=mode)
+        tmp_gif = os.path.join(tempfile.gettempdir(), f"upload_{time.time()}_{random.randint(1000, 9999)}.gif")
         try:
-            os.remove(tmp_gif)
-        except Exception:
-            pass
-        if gif_delay > 0:
-            fps = max(1, min(30, int(1000 / gif_delay)))
+            with open(tmp_gif, "wb") as f_out:
+                f_out.write(body_bytes)
+            frames, gif_delay = ascii_engine.convert_gif_to_frames(
+                tmp_gif, width=width, mode=mode, max_frames=ascii_engine.MAX_GIF_FRAMES
+            )
+            if gif_delay > 0:
+                fps = max(1, min(30, int(1000 / gif_delay)))
+        finally:
+            if os.path.exists(tmp_gif):
+                try:
+                    os.remove(tmp_gif)
+                except Exception:
+                    pass
     else:
         if effect == "scanner":
             frames = ascii_engine.generate_scanner_frames(img, width=width, mode=mode, num_frames=18)
@@ -144,10 +226,54 @@ def process_uploaded_media(body_bytes, width, mode, effect, contrast, brightness
 
     return frames, fps
 
+# --- Hardened Base Request Handler ---
+
+class BaseHandler(tornado.web.RequestHandler):
+    """Secure base request handler with hardened HTTP headers and sanitized error handling."""
+    def set_default_headers(self):
+        self.set_header("X-Content-Type-Options", "nosniff")
+        self.set_header("X-Frame-Options", "DENY")
+        self.set_header("X-XSS-Protection", "1; mode=block")
+        self.set_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        self.set_header("Permissions-Policy", "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()")
+        self.set_header("Content-Security-Policy", (
+            "default-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
+        ))
+        self.clear_header("Server")
+
+    def write_error(self, status_code, **kwargs):
+        """Sanitized error responses without leaking tracebacks or system internals."""
+        self.set_header("Content-Type", "application/json; charset=utf-8")
+        msg = "An unexpected error occurred."
+        if status_code == 404:
+            msg = "Resource not found."
+        elif status_code == 400:
+            msg = "Bad request."
+        elif status_code == 403:
+            msg = "Forbidden."
+        elif status_code == 409:
+            msg = "Resource conflict."
+        elif status_code == 413:
+            msg = "Payload too large. Maximum upload size is 8MB."
+        elif status_code == 429:
+            msg = "Rate limit exceeded. Please wait a few minutes before trying again."
+        
+        self.finish(json.dumps({
+            "success": False,
+            "status": status_code,
+            "error": msg
+        }))
 
 # --- Request Handlers ---
 
-class StreamHandler(tornado.web.RequestHandler):
+class StreamHandler(BaseHandler):
     """
     Zero-latency chunked stream handler.
     Pulls from LRU cache / SQLite and records analytics.
@@ -158,11 +284,13 @@ class StreamHandler(tornado.web.RequestHandler):
             self.redirect("/")
             return
 
+        # Sanitize slug
+        slug = re.sub(r"[^a-z0-9-]", "", slug)
         anim = db.get_animation(slug)
         if not anim:
             self.set_status(404)
             self.set_header("Content-Type", "text/plain; charset=utf-8")
-            self.write(f"Animation '{slug}' not found.\nExplore animations at: http://{self.request.host}/\n")
+            self.write(f"Animation '{slug}' not found.\nExplore active streams at: http://{self.request.host}/\n")
             return
 
         user_agent = self.request.headers.get("User-Agent", "").lower()
@@ -189,7 +317,7 @@ class StreamHandler(tornado.web.RequestHandler):
         # Record view analytics (buffered in-memory)
         db.record_view(slug)
 
-        fps = anim.get("fps", 12)
+        fps = anim.get("fps", 14)
         delay = 1.0 / max(1, fps)
         idx = 0
 
@@ -212,19 +340,19 @@ class StreamHandler(tornado.web.RequestHandler):
                 pass
 
 
-class ViewerHandler(tornado.web.RequestHandler):
+class ViewerHandler(BaseHandler):
     """Serves the CRT Web Terminal Player."""
     def get(self):
         self.render(os.path.join(STATIC_DIR, "viewer.html"))
 
 
-class StudioHandler(tornado.web.RequestHandler):
+class StudioHandler(BaseHandler):
     """Serves the Interactive ASCII Studio & Creator."""
     def get(self):
         self.render(os.path.join(STATIC_DIR, "index.html"))
 
 
-class HealthHandler(tornado.web.RequestHandler):
+class HealthHandler(BaseHandler):
     """Healthcheck endpoint for cloud load balancers and orchestrators."""
     def get(self):
         stats = db.get_stats()
@@ -237,21 +365,36 @@ class HealthHandler(tornado.web.RequestHandler):
         })
 
 
-class ApiStatsHandler(tornado.web.RequestHandler):
+class ApiStatsHandler(BaseHandler):
     """Returns global platform statistics."""
     def get(self):
+        client_ip = get_client_ip(self)
+        if not API_LIMITER.is_allowed(client_ip):
+            self.set_status(429)
+            self.write(json.dumps({"success": False, "error": "Rate limit exceeded"}))
+            return
         self.set_header("Content-Type", "application/json")
         self.write(json.dumps(db.get_stats()))
 
 
-class ApiListHandler(tornado.web.RequestHandler):
+class ApiListHandler(BaseHandler):
     """Paginated, searchable list of animations with view counts."""
     def get(self):
+        client_ip = get_client_ip(self)
+        if not API_LIMITER.is_allowed(client_ip):
+            self.set_status(429)
+            self.write(json.dumps({"success": False, "error": "Rate limit exceeded"}))
+            return
+
         host = self.request.host
         search = self.get_query_argument("q", self.get_query_argument("search", None))
         sort_by = self.get_query_argument("sort", "views")
-        limit = min(100, max(1, int(self.get_query_argument("limit", "50"))))
+        limit = min(db.MAX_CAPACITY, max(1, int(self.get_query_argument("limit", "50"))))
         offset = max(0, int(self.get_query_argument("offset", "0")))
+
+        # Sanitize search term
+        if search:
+            search = re.sub(r"[^\w\s-]", "", search)[:50]
 
         animations = db.list_animations(limit=limit, offset=offset, search=search, sort_by=sort_by)
         for item in animations:
@@ -266,10 +409,16 @@ class ApiListHandler(tornado.web.RequestHandler):
         }))
 
 
-class ApiAnimationHandler(tornado.web.RequestHandler):
+class ApiAnimationHandler(BaseHandler):
     """Returns full animation data for a slug."""
     def get(self, slug):
-        slug = slug.strip("/").lower()
+        client_ip = get_client_ip(self)
+        if not API_LIMITER.is_allowed(client_ip):
+            self.set_status(429)
+            self.write(json.dumps({"success": False, "error": "Rate limit exceeded"}))
+            return
+
+        slug = re.sub(r"[^a-z0-9-]", "", slug.strip("/").lower())
         anim = db.get_animation(slug)
         if not anim:
             self.set_status(404)
@@ -284,29 +433,41 @@ class ApiAnimationHandler(tornado.web.RequestHandler):
         self.write(json.dumps(resp))
 
 
-class ApiUploadHandler(tornado.web.RequestHandler):
+class ApiUploadHandler(BaseHandler):
     """
-    Non-blocking async media processing pipeline.
-    Accepts image/GIF, bakes into zlib-compressed ANSI frames, and saves to SQLite.
+    Non-blocking async media processing pipeline with defense-in-depth security.
+    Validates magic bytes, rate limits IPs, enforces unique slugs, and retention limits.
     """
     async def post(self):
+        # 1. IP Rate Limiting Check
+        client_ip = get_client_ip(self)
+        if not UPLOAD_LIMITER.is_allowed(client_ip):
+            self.set_status(429)
+            self.write(json.dumps({
+                "success": False,
+                "error": "Rate limit exceeded. Maximum 6 animations per 5 minutes per IP."
+            }))
+            return
+
         try:
             slug = self.get_body_argument("slug", "").strip().lower()
             title = self.get_body_argument("title", "").strip()
             mode = self.get_body_argument("mode", "halfblock")
             effect = self.get_body_argument("effect", "scanner")
-            width = int(self.get_body_argument("width", "54"))
-            fps = int(self.get_body_argument("fps", "12"))
-            contrast = float(self.get_body_argument("contrast", "1.0"))
-            brightness = float(self.get_body_argument("brightness", "1.0"))
+            width = self.get_body_argument("width", "54")
+            fps = self.get_body_argument("fps", "14")
+            contrast = self.get_body_argument("contrast", "1.0")
+            brightness = self.get_body_argument("brightness", "1.0")
 
-            # Normalize and strictly validate unique slug
+            # 2. Strict Slug Validation (Anti-Path Traversal, Anti-Injection)
             if slug:
-                slug = "".join(c for c in slug if c.isalnum() or c in "-_")
-                slug = slug.strip("-_")
-                if len(slug) < 2 or len(slug) > 32:
+                slug = re.sub(r"[^a-z0-9-]", "", slug).strip("-")
+                if not re.match(r"^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$", slug) or len(slug) < 2:
                     self.set_status(400)
-                    self.write(json.dumps({"success": False, "error": "Slug must be between 2 and 32 characters (alphanumeric and dashes only)."}))
+                    self.write(json.dumps({
+                        "success": False,
+                        "error": "Slug must be between 2 and 32 characters, starting and ending with alphanumeric characters (a-z, 0-9, hyphens)."
+                    }))
                     return
                 if slug in RESERVED_SLUGS:
                     self.set_status(400)
@@ -322,16 +483,20 @@ class ApiUploadHandler(tornado.web.RequestHandler):
             else:
                 slug = generate_random_slug()
 
-            if not title:
-                title = slug.replace("-", " ").capitalize()
+            # 3. Title Sanitization (Strip ANSI escapes & control characters)
+            title = re.sub(r"[\x00-\x1f\x7f-\x9f\x1b]", "", title).strip()
+            title = title[:60] if title else slug.replace("-", " ").capitalize()
 
+            # 4. File payload validation
             files = self.request.files.get("file")
-            frames = []
-
             body_bytes = None
             if files and len(files) > 0:
                 upload_file = files[0]
                 body_bytes = upload_file["body"]
+                if len(body_bytes) > 8 * 1024 * 1024:
+                    self.set_status(413)
+                    self.write(json.dumps({"success": False, "error": "File size exceeds 8MB limit"}))
+                    return
 
             loop = tornado.ioloop.IOLoop.current()
             frames, fps = await loop.run_in_executor(
@@ -362,9 +527,12 @@ class ApiUploadHandler(tornado.web.RequestHandler):
                 "capacity": capacity_stats
             }))
 
-        except Exception as e:
+        except ValueError as ve:
+            self.set_status(400)
+            self.write(json.dumps({"success": False, "error": str(ve)}))
+        except Exception:
             self.set_status(500)
-            self.write({"error": str(e)})
+            self.write(json.dumps({"success": False, "error": "An internal error occurred while processing media."}))
 
 
 def make_app():
@@ -378,7 +546,12 @@ def make_app():
         (r"/api/upload", ApiUploadHandler),
         (r"/static/(.*)", tornado.web.StaticFileHandler, {"path": STATIC_DIR}),
         (r"/(.*)", StreamHandler),
-    ], template_path=STATIC_DIR)
+    ], 
+    template_path=STATIC_DIR,
+    debug=False,
+    serve_traceback=False,
+    compiled_template_cache=True
+    )
 
 
 if __name__ == "__main__":
@@ -397,7 +570,7 @@ if __name__ == "__main__":
 
     for p in range(port, port + 10):
         try:
-            app.listen(p)
+            app.listen(p, max_buffer_size=8 * 1024 * 1024)
             print("=" * 60)
             print(f" [ASCII LIVE ART] Server running on http://localhost:{p}")
             print(f" -> Web Studio & Generator: http://localhost:{p}/")

@@ -2,6 +2,10 @@ import math
 import random
 from PIL import Image, ImageSequence, ImageEnhance
 
+# Security: Limit maximum pixels to prevent decompression bomb attacks
+Image.MAX_IMAGE_PIXELS = 16_000_000
+MAX_GIF_FRAMES = 60
+
 # --- ANSI Utilities ---
 
 def ansi_rgb_fg(r, g, b):
@@ -326,12 +330,14 @@ def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
 
 # --- GIF Handler ---
 
-def convert_gif_to_frames(gif_path, width=54, mode="halfblock"):
+def convert_gif_to_frames(gif_path, width=54, mode="halfblock", max_frames=MAX_GIF_FRAMES):
     gif = Image.open(gif_path)
     frames = []
     durations = []
 
-    for frame in ImageSequence.Iterator(gif):
+    for idx, frame in enumerate(ImageSequence.Iterator(gif)):
+        if idx >= max_frames:
+            break
         dur = frame.info.get("duration", 100)
         durations.append(dur)
         rgba = frame.convert("RGBA")
