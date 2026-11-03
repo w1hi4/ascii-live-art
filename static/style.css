@@ -405,6 +405,12 @@ body {
 .content-section {
   padding: 1.5rem 1.25rem;
   border-bottom: 1px solid var(--border-card);
+  contain: layout;
+  min-height: fit-content;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .section-header-split {
@@ -453,6 +459,10 @@ body {
   flex-direction: column;
   gap: 0.65rem;
   margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .search-box-wrapper {
@@ -498,6 +508,49 @@ body {
   animation: spin 0.6s linear infinite;
   vertical-align: middle;
   margin-right: 6px;
+}
+
+/* --- High-Fidelity Skeletons for Zero CLS --- */
+.stream-skeleton-card td {
+  padding: 0.85rem 1rem;
+  vertical-align: middle;
+}
+
+.skeleton-shim {
+  background: linear-gradient(90deg, #090c14 25%, #161e30 50%, #090c14 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.shimmer-line-lg {
+  width: 130px;
+  height: 18px;
+  margin-bottom: 6px;
+}
+
+.shimmer-line-sm {
+  width: 90px;
+  height: 12px;
+}
+
+.shimmer-pill {
+  width: 95px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.shimmer-cmd {
+  width: 220px;
+  height: 26px;
+  border-radius: 4px;
+}
+
+.shimmer-btn {
+  width: 65px;
+  height: 28px;
+  border-radius: var(--radius-sm);
 }
 
 .skeleton-row {
@@ -560,13 +613,22 @@ body {
   margin-left: 0.4rem;
 }
 
-/* Filter Pills */
+/* Filter Pills - Fixed Height & Isolated Layout for Zero CLS */
 .filter-pills {
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
-  padding-bottom: 0.25rem;
+  overflow-y: hidden;
+  padding: 2px 0 6px 0;
+  min-height: 38px;
+  height: 38px;
+  align-items: center;
   scrollbar-width: none;
+  contain: layout;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .filter-pills::-webkit-scrollbar {
   display: none;
@@ -576,7 +638,7 @@ body {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-card);
   color: var(--text-secondary);
-  padding: 0.25rem 0.65rem;
+  padding: 0 0.65rem;
   border-radius: 999px;
   font-family: inherit;
   font-size: 0.75rem;
@@ -584,6 +646,12 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: var(--transition);
+  height: 28px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .filter-pill:hover {
@@ -660,6 +728,12 @@ body {
   border: 1px solid var(--border-card);
   border-radius: var(--radius-md);
   overflow: hidden;
+  min-height: 210px;
+  contain: layout;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .streams-table {
@@ -1227,6 +1301,14 @@ select.input-ctrl {
     overflow-x: hidden !important;
   }
 
+  .content-section {
+    padding: 1rem 0.65rem !important;
+  }
+
+  .hero-cmd-card {
+    padding: 0.85rem 0.65rem !important;
+  }
+
   .desktop-only { display: none !important; }
   .mobile-only { display: flex !important; }
 
@@ -1397,6 +1479,8 @@ select.input-ctrl {
     padding: 0;
     width: 100% !important;
     max-width: 100% !important;
+    min-height: 440px !important;
+    contain: layout;
   }
 
   .streams-table, .streams-table thead, .streams-table tbody, .streams-table th, .streams-table td, .streams-table tr {
@@ -1421,6 +1505,44 @@ select.input-ctrl {
     max-width: 100% !important;
     box-sizing: border-box !important;
     overflow: hidden;
+  }
+
+  .streams-table tr.stream-skeleton-card {
+    display: block;
+    background: #090c14;
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.75rem;
+    padding: 0.85rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 145px;
+  }
+
+  .stream-skeleton-card td {
+    display: block;
+    padding: 0.25rem 0;
+    width: 100% !important;
+  }
+
+  .stream-skeleton-card td.actions-cell {
+    margin-top: 0.65rem !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .stream-skeleton-card .shimmer-cmd {
+    width: 100% !important;
+    height: 30px;
+  }
+
+  .stream-skeleton-card .shimmer-btn {
+    width: 100% !important;
+    height: 38px;
   }
 
   .streams-table td {
@@ -1509,6 +1631,10 @@ select.input-ctrl {
 @media (max-width: 480px) {
   body {
     padding: 0.35rem 0.25rem 1.5rem 0.25rem !important;
+  }
+
+  .content-section {
+    padding: 0.85rem 0.5rem !important;
   }
 
   .terminal-screen {

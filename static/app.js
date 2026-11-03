@@ -455,14 +455,6 @@ function filterAndRenderStreams() {
 // --- Fetch & Populate Streams ---
 async function loadGallery() {
   try {
-    if (streamsBody && (!allAnimations || allAnimations.length === 0)) {
-      streamsBody.innerHTML = `
-        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
-        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
-        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
-      `;
-    }
-
     const res = await fetch("/api/list?sort=views");
     const data = await res.json();
 
