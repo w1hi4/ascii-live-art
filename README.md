@@ -20,7 +20,7 @@
 An ultra-scalable, production-grade terminal streaming service inspired by `ascii.live` and `parrot.live`.<br>
 Streams live ANSI animations directly to any terminal with zero client-side installation.
 
-[Features](#-key-features) • [Quick Start](#-quick-start) • [Available Streams](#-available-streams) • [Architecture](#-high-scale-architecture) • [Free Cloud Deployment](#-100-free-cloud-hosting)
+[Features](#-key-features) • [Quick Start](#-quick-start) • [Available Streams](#-available-streams) • [Architecture](#-high-scale-architecture) • [Free Cloud Deployment](#-100-free-cloud-hosting) • [Testing](#-automated-testing)
 
 </div>
 
@@ -41,7 +41,9 @@ curl -s https://ascii-live-art.onrender.com/donut
 curl -s https://ascii-live-art.onrender.com/fire
 ```
 
-*(Visiting [https://ascii-live-art.onrender.com](https://ascii-live-art.onrender.com) in any browser opens the live compact studio & CRT player).*
+*Visiting [https://ascii-live-art.onrender.com](https://ascii-live-art.onrender.com) in any browser opens the live compact studio & CRT player).*
+
+> Uploaded image names are automatically converted into short stream slugs, trimmed to a maximum of 16 characters, and sanitized to lowercase letters, numbers, and hyphens only.
 
 ---
 
@@ -66,7 +68,7 @@ curl -s https://ascii-live-art.onrender.com/fire
 ## 🎬 Available Streams
 
 | Slug | Animation Name | Mode | FPS | Command |
-| :--- | :--- | :--- | :--- | :--- |
+| | :--- | :--- | :--- | :--- |
 | `/art` | **ASCII Live Art (Flagship)** | Truecolor Shimmer Banner | 15 | `curl -s https://ascii-live-art.onrender.com/art` |
 | `/donut` | **3D Spinning Donut** | ASCII Character Density | 16 | `curl -s https://ascii-live-art.onrender.com/donut` |
 | `/fire` | **Doom Inferno Fire** | 256-Color Palette | 15 | `curl -s https://ascii-live-art.onrender.com/fire` |
