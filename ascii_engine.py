@@ -43,7 +43,6 @@ def generate_flagship_art_frames(num_frames=20):
     ]
     frames = []
     w = max(len(line) for line in banner) + 4
-    chars_eq = " ▂▃▄"
     for k in range(num_frames):
         phase = (k / num_frames) * 2 * math.pi
         lines = []
@@ -64,8 +63,12 @@ def generate_flagship_art_frames(num_frames=20):
             lines.append(line)
         eq_line = "│ "
         for bar in range(w - 4):
-            val = min(3, max(0, int(abs(math.sin(phase * 1.5 + bar * 0.35)) * 4)))
-            eq_line += f"\033[38;2;56;189;248m{chars_eq[val]}\033[0m"
+            # Smooth neon cyber-wave with fixed 1ch width character (zero fluctuation)
+            val = 0.5 + 0.5 * math.sin(phase * 2.0 + bar * 0.28)
+            r = int(20 + 220 * (val ** 1.6))
+            g = int(140 + 95 * val)
+            b = int(245 - 190 * val)
+            eq_line += f"\033[38;2;{r};{g};{b}m▀\033[0m"
         eq_line += " │"
         lines.append(eq_line)
         lines.append(f"\033[38;2;120;120;140m{border_bot}\033[0m")

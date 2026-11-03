@@ -1059,19 +1059,31 @@ body {
   background: #000;
   border: 1px solid var(--border-card);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  min-height: 280px;
+  max-height: 360px;
   height: 340px;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  contain: content;
 }
 
 .terminal-screen {
-  padding: 0.85rem;
-  font-size: clamp(7px, 1.2vw, 10px);
-  line-height: 1.08;
+  padding: 0.5rem;
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-size: clamp(6.5px, 0.95vw, 9.5px);
+  line-height: 1.05;
   white-space: pre;
   user-select: none;
-  min-height: 100%;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-align: center;
+  margin: auto;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 /* Scanlines Effect */
@@ -1231,12 +1243,17 @@ body {
   }
 
   .creator-grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
+  .creator-card {
+    padding: 1rem 0.75rem !important;
+    border-radius: var(--radius-md) !important;
   }
 
   .form-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .input-ctrl {
@@ -1252,15 +1269,29 @@ body {
     font-size: 0.85rem;
   }
 
+  .creator-preview {
+    width: 100% !important;
+    margin-top: 0.5rem !important;
+  }
+
   .crt-frame {
-    height: 200px;
-    max-height: 200px;
+    height: auto !important;
+    min-height: 210px !important;
+    max-height: 260px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .terminal-screen {
-    font-size: 7px;
-    padding: 0.35rem;
-    overflow: hidden;
+    font-size: clamp(5px, 2.05vw, 7.5px) !important;
+    line-height: 1.05 !important;
+    padding: 0.25rem !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    max-width: 100% !important;
   }
 
   /* Responsive Stream Cards on Mobile */
@@ -1338,5 +1369,26 @@ body {
     right: 12px;
     bottom: 12px;
     justify-content: center;
+  }
+}
+
+/* --- Ultra-Compact Mobile (< 480px) --- */
+@media (max-width: 480px) {
+  .terminal-screen {
+    font-size: clamp(4.8px, 1.95vw, 6.8px) !important;
+    padding: 0.15rem !important;
+  }
+
+  .crt-frame {
+    min-height: 180px !important;
+    max-height: 220px !important;
+  }
+
+  .banner-tagline {
+    font-size: 0.68rem !important;
+  }
+
+  .mobile-hero-title {
+    font-size: 1.65rem !important;
   }
 }
