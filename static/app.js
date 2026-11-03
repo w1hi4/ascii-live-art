@@ -167,7 +167,6 @@ let currentFps = 14;
 
 // Cache of all loaded streams for instant zero-latency filtering
 let allAnimations = [];
-let activeFilter = "all";
 let activeSearchQuery = "";
 let serverSearchTimer = null;
 let currentStreamsPage = 1;
@@ -397,16 +396,9 @@ function filterAndRenderStreams() {
   if (!streamsBody) return;
 
   const q = activeSearchQuery.trim().toLowerCase();
-  const filter = activeFilter;
 
   const filtered = allAnimations.filter((item) => {
-    // 1. Tag / Category Filter
-    if (filter === "flagship" && item.effect !== "flagship") return false;
-    if (filter === "3d" && item.effect !== "3d") return false;
-    if (filter === "fire" && item.effect !== "fire") return false;
-    if (filter === "halfblock" && item.mode !== "halfblock") return false;
-
-    // 2. Search Query Matching (slug, title, mode, effect)
+    // Search Query Matching (slug, title, mode, effect)
     if (q) {
       const matchSlug = item.slug.toLowerCase().includes(q);
       const matchTitle = (item.title || "").toLowerCase().includes(q);
@@ -433,7 +425,7 @@ function filterAndRenderStreams() {
 
   // Update Result Count Badge
   if (searchResultsCount) {
-    if (q || filter !== "all") {
+    if (q) {
       searchResultsCount.textContent = `${filtered.length} OF ${allAnimations.length} MATCHES`;
     } else {
       searchResultsCount.textContent = `${allAnimations.length} STREAMS`;
@@ -466,7 +458,7 @@ function filterAndRenderStreams() {
     streamsBody.innerHTML = "";
     if (noResultsBox) {
       noResultsBox.style.display = "block";
-      if (emptyQueryText) emptyQueryText.textContent = q || filter;
+      if (emptyQueryText) emptyQueryText.textContent = q;
     }
     return;
   }
@@ -617,17 +609,6 @@ if (btnCreateFromSearch) {
     if (dropzone) dropzone.focus();
   });
 }
-
-// Filter pills click handling
-document.querySelectorAll(".filter-pill").forEach((pill) => {
-  pill.addEventListener("click", () => {
-    document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
-    pill.classList.add("active");
-    activeFilter = pill.getAttribute("data-filter") || "all";
-    currentStreamsPage = 1;
-    filterAndRenderStreams();
-  });
-});
 
 // Page size selector buttons (4, 8, 12, All)
 document.querySelectorAll(".btn-page-size").forEach((btn) => {
