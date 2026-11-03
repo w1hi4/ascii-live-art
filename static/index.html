@@ -290,14 +290,23 @@
                 <span class="btn-label">Bake Stream & Generate Link</span>
               </button>
 
-              <!-- Success Alert Box -->
+              <!-- Success Alert Box with Perfectly Balanced Actions -->
               <div id="shareBanner" class="success-box">
                 <div class="success-header">
                   <span>🎉 Stream Created Successfully!</span>
                 </div>
                 <div class="success-cmd-bar">
                   <code id="shareCurl"></code>
-                  <button class="btn-copy-sm" onclick="copyText(document.getElementById('shareCurl').textContent)">Copy</button>
+                  <div class="success-actions">
+                    <button id="btnShareCopy" class="btn-success-copy" onclick="copyText(document.getElementById('shareCurl').textContent)" aria-label="Copy stream command">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      <span>Copy</span>
+                    </button>
+                    <a id="btnShareViewer" href="/viewer" class="btn-success-play" aria-label="Play stream">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                      <span>Play</span>
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

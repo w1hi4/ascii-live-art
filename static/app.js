@@ -353,23 +353,12 @@ if (btnGenerate) {
         const liveCurl = `curl -sN ${proto}//${window.location.host}/${result.slug}`;
 
         if (shareCurl) shareCurl.textContent = liveCurl;
+        const viewerBtn = document.getElementById("btnShareViewer");
+        if (viewerBtn) {
+          viewerBtn.href = `/viewer?slug=${encodeURIComponent(result.slug)}`;
+        }
         if (shareBanner) {
           shareBanner.classList.add("active");
-          let viewerBtn = document.getElementById("btnShareViewer");
-          if (!viewerBtn) {
-            viewerBtn = document.createElement("a");
-            viewerBtn.id = "btnShareViewer";
-            viewerBtn.className = "btn-secondary";
-            viewerBtn.style.padding = "0.35rem 0.75rem";
-            viewerBtn.style.fontSize = "0.75rem";
-            viewerBtn.style.textDecoration = "none";
-            viewerBtn.textContent = "▶️ Play";
-            const actionsBar = shareBanner.querySelector(".success-cmd-bar");
-            if (actionsBar) actionsBar.appendChild(viewerBtn);
-          }
-          if (viewerBtn) {
-            viewerBtn.href = `/viewer?slug=${encodeURIComponent(result.slug)}`;
-          }
           shareBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
 
