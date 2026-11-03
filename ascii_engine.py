@@ -77,6 +77,21 @@ def generate_flagship_art_frames(num_frames=20):
 
 # --- Image Conversion to ANSI Frames ---
 
+def is_light_background(img_rgba):
+    """Detects if image has a solid white or near-white background canvas."""
+    w, h = img_rgba.size
+    if w < 4 or h < 4:
+        return False
+    corners = [
+        img_rgba.getpixel((0, 0)),
+        img_rgba.getpixel((w - 1, 0)),
+        img_rgba.getpixel((0, h - 1)),
+        img_rgba.getpixel((w - 1, h - 1))
+    ]
+    # Check if all 4 corners are opaque and near-white (luminance >= 238)
+    return all(a > 200 and (r + g + b) // 3 >= 238 for r, g, b, a in corners)
+
+
 def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
     img = img.convert("RGBA")
     if contrast != 1.0:
@@ -87,12 +102,14 @@ def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
         img = enh.enhance(brightness)
 
     orig_w, orig_h = img.size
-    aspect = orig_h / orig_w
-    height = int(width * aspect)
+    aspect = orig_h / max(1, orig_w)
+    # Clamp height so it fits within standard 24-line terminals (44-46 halfblock rows = 22-23 text lines)
+    height = max(8, min(46, int(width * aspect)))
     if height % 2 != 0:
         height += 1
 
     resized = img.resize((width, height), Image.Resampling.LANCZOS)
+    light_bg = is_light_background(resized)
     lines = []
 
     for y in range(0, height, 2):
@@ -104,8 +121,18 @@ def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
             r1, g1, b1, a1 = resized.getpixel((x, y))
             r2, g2, b2, a2 = resized.getpixel((x, y + 1))
 
-            top_solid = a1 > 40
-            bot_solid = a2 > 40
+            # Smart background detection: clear near-white canvas
+            top_bg = light_bg and (r1 + g1 + b1) // 3 >= 236
+            bot_bg = light_bg and (r2 + g2 + b2) // 3 >= 236
+
+            top_solid = a1 > 40 and not top_bg
+            bot_solid = a2 > 40 and not bot_bg
+
+            # If black subject/drawing on white background, illuminate as neon gold
+            if light_bg and top_solid and (r1 + g1 + b1) // 3 < 45:
+                r1, g1, b1 = 255, 215, 0
+            if light_bg and bot_solid and (r2 + g2 + b2) // 3 < 45:
+                r2, g2, b2 = 255, 215, 0
 
             if not top_solid and not bot_solid:
                 if cur_fg is not None or cur_bg is not None:
@@ -144,7 +171,9 @@ def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
     return "\n".join(lines)
 
 
-def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, brightness=1.0):
+def convert_image_to_ascii(img, width=54, char_set=None, contrast=1.0, brightness=1.0):
+    if char_set is None:
+        char_set = DENSE_CHARS
     img = img.convert("RGBA")
     if contrast != 1.0:
         enh = ImageEnhance.Contrast(img)
@@ -154,11 +183,12 @@ def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, b
         img = enh.enhance(brightness)
 
     orig_w, orig_h = img.size
-    height = int(width * (orig_h / orig_w) * 0.48)
-    if height < 1:
-        height = 1
+    aspect = orig_h / max(1, orig_w)
+    # Clamp height to fit within standard 24-line terminals (max 22 lines)
+    height = max(6, min(22, int(width * aspect * 0.48)))
 
     resized = img.resize((width, height), Image.Resampling.LANCZOS)
+    light_bg = is_light_background(resized)
     lines = []
     num_chars = len(char_set)
 
@@ -167,13 +197,20 @@ def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, b
         cur_fg = None
         for x in range(width):
             r, g, b, a = resized.getpixel((x, y))
-            if a < 40:
+            is_bg = a < 40 or (light_bg and (r + g + b) // 3 >= 236)
+
+            if is_bg:
                 if cur_fg is not None:
                     line += ANSI_RESET
                     cur_fg = None
                 line += " "
             else:
                 gray = int(0.299 * r + 0.587 * g + 0.114 * b)
+                # Dark subject on white canvas: invert and colorize with golden neon
+                if light_bg and gray < 50:
+                    r, g, b = 255, 215, 0
+                    gray = 220
+
                 char_idx = min(num_chars - 1, max(0, gray * num_chars // 256))
                 char = char_set[char_idx]
 
@@ -194,19 +231,31 @@ def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, b
 def prepare_animation_base(img, width=54, mode="halfblock"):
     """Pre-scales image to target terminal dimensions before effect loops for a 300x performance boost."""
     base = img.convert("RGBA")
+
+    # Auto-enhance contrast and sharpness so details and lines pop in ASCII
+    try:
+        enh_con = ImageEnhance.Contrast(base)
+        base = enh_con.enhance(1.25)
+        enh_shp = ImageEnhance.Sharpness(base)
+        base = enh_shp.enhance(1.4)
+    except Exception:
+        pass
+
     orig_w, orig_h = base.size
     aspect = orig_h / max(1, orig_w)
     if mode == "halfblock":
-        height = int(width * aspect)
+        # 1 character cell is 2 vertical pixels; clamp to max 46 pixels (23 text lines)
+        height = max(8, min(46, int(width * aspect)))
         if height % 2 != 0:
             height += 1
     else:
-        height = max(4, int(width * aspect * 0.5))
-    height = max(4, min(100, height))
+        # Standard character cell aspect ratio ~2:1; clamp to max 22 lines
+        height = max(6, min(22, int(width * aspect * 0.48)))
+
     return base.resize((width, height), Image.Resampling.LANCZOS)
 
 
-def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
+def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=18):
     base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
@@ -214,48 +263,47 @@ def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
     for k in range(num_frames):
         progress = (k / num_frames) * 2 * math.pi
         scan_ratio = 0.5 - 0.5 * math.cos(progress)
-        scan_y = int(scan_ratio * h)
+        scan_y = int(scan_ratio * (h - 1))
 
         frame_img = base.copy()
         pixels = frame_img.load()
-        band = max(2, int(h * 0.12))
+        band = max(2, int(h * 0.18))
 
         for y in range(h):
             dist = abs(y - scan_y)
             if dist < band:
                 intensity = 1.0 - (dist / band)
-                boost = int(140 * intensity)
+                boost = int(180 * intensity)
                 for x in range(w):
                     r, g, b, a = pixels[x, y]
                     if a > 30:
-                        nr = min(255, r + boost)
-                        ng = min(255, g + boost)
-                        nb = min(255, b + int(boost * 0.5))
+                        nr = min(255, int(r + boost * 0.85))
+                        ng = min(255, int(g + boost * 0.95))
+                        nb = min(255, int(b + boost * 1.1))
                         pixels[x, y] = (nr, ng, nb, a)
             else:
                 for x in range(w):
                     r, g, b, a = pixels[x, y]
                     if a > 30:
-                        pixels[x, y] = (int(r * 0.88), int(g * 0.88), int(b * 0.88), a)
+                        pixels[x, y] = (int(r * 0.85), int(g * 0.85), int(b * 0.85), a)
 
         if mode == "halfblock":
             text = convert_image_to_halfblock(frame_img, width=width)
         else:
-            text = convert_image_to_ascii(frame_img, width=width, char_set=SIMPLE_CHARS)
+            text = convert_image_to_ascii(frame_img, width=width, char_set=DENSE_CHARS)
 
         frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
 
     return frames
 
 
-def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
+def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=18):
     base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
 
     for k in range(num_frames):
         phase = (k / num_frames) * 2 * math.pi
-        pulse = 0.75 + 0.35 * math.sin(phase)
 
         frame_img = base.copy()
         pixels = frame_img.load()
@@ -264,47 +312,50 @@ def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
             for x in range(w):
                 r, g, b, a = pixels[x, y]
                 if a > 30:
-                    nr = min(255, int(r * pulse * 1.1))
-                    ng = min(255, int(g * pulse * 1.05))
-                    nb = min(255, int(b * pulse * 0.85))
-                    pixels[x, y] = (nr, ng, nb, a)
+                    wave = 0.5 + 0.5 * math.sin(phase * 2.0 + (x / max(1, w)) * 3.5 + (y / max(1, h)) * 2.0)
+                    pulse_r = min(255, int(r * (0.8 + 0.45 * wave) + 40 * wave))
+                    pulse_g = min(255, int(g * (0.75 + 0.4 * wave) + 25 * wave))
+                    pulse_b = min(255, int(b * (0.65 + 0.25 * wave)))
+                    pixels[x, y] = (pulse_r, pulse_g, pulse_b, a)
 
         if mode == "halfblock":
             text = convert_image_to_halfblock(frame_img, width=width)
         else:
-            text = convert_image_to_ascii(frame_img, width=width, char_set=SIMPLE_CHARS)
+            text = convert_image_to_ascii(frame_img, width=width, char_set=DENSE_CHARS)
 
         frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
 
     return frames
 
 
-def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
+def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=20):
     base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
-    drops = [random.randint(0, h) for _ in range(max(1, w // 4))]
+    num_cols = max(4, w // 3)
+    col_x = [int(i * (w / num_cols)) for i in range(num_cols)]
+    drops = [(random.randint(0, h), random.randint(3, 8)) for _ in range(num_cols)]
 
     for k in range(num_frames):
         frame_img = base.copy()
         pixels = frame_img.load()
 
-        for col_idx in range(len(drops)):
-            drops[col_idx] = (drops[col_idx] + int(h * 0.12)) % max(1, h)
-            x_pos = min(w - 1, col_idx * 4 + 2)
-            y_head = drops[col_idx]
+        for i, (y_head, tail_len) in enumerate(drops):
+            current_head = (y_head + int(k * 1.8)) % max(1, h)
+            x_pos = min(w - 1, col_x[i])
 
-            for tail in range(min(8, h)):
-                y_pos = (y_head - tail) % max(1, h)
-                intensity = max(0.0, 1.0 - (tail / 8.0))
+            for t in range(tail_len):
+                y_pos = (current_head - t) % max(1, h)
+                intensity = 1.0 - (t / max(1, tail_len))
                 r, g, b, a = pixels[x_pos, y_pos]
                 if a > 30:
-                    pixels[x_pos, y_pos] = (
-                        min(255, int(r + 100 * intensity)),
-                        min(255, int(g + 180 * intensity)),
-                        min(255, int(b + 50 * intensity)),
-                        a
-                    )
+                    if t == 0:
+                        pixels[x_pos, y_pos] = (235, 255, 240, a)
+                    else:
+                        mg = min(255, int(g * 0.5 + 220 * intensity))
+                        mr = min(255, int(r * 0.3 + 30 * intensity))
+                        mb = min(255, int(b * 0.3 + 50 * intensity))
+                        pixels[x_pos, y_pos] = (mr, mg, mb, a)
 
         if mode == "halfblock":
             text = convert_image_to_halfblock(frame_img, width=width)
@@ -316,7 +367,7 @@ def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
     return frames
 
 
-def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
+def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=18):
     base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
@@ -325,16 +376,19 @@ def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
         frame_img = base.copy()
         pixels = frame_img.load()
 
-        if k % 3 == 0:
-            glitch_y = random.randint(max(0, h // 6), max(1, h - h // 6))
-            glitch_h = random.randint(1, max(2, h // 10))
-            shift_x = random.randint(-4, 4)
+        if k % 2 == 1:
+            glitch_y = random.randint(0, max(0, h - 3))
+            glitch_h = random.randint(1, max(2, h // 5))
+            shift_x = random.choice([-3, -2, 2, 3, 5])
 
             for y in range(glitch_y, min(h, glitch_y + glitch_h)):
                 row_pixels = [pixels[x, y] for x in range(w)]
                 for x in range(w):
-                    src_x = (x - shift_x) % w
-                    pixels[x, y] = row_pixels[src_x]
+                    rx = (x - shift_x) % w
+                    cx = (x + shift_x) % w
+                    r, _, _, a = row_pixels[rx]
+                    _, g, b, _ = row_pixels[cx]
+                    pixels[x, y] = (min(255, r + 40), g, min(255, b + 50), a)
 
         if mode == "halfblock":
             text = convert_image_to_halfblock(frame_img, width=width)

@@ -141,23 +141,36 @@
       position: relative;
     }
 
-    /* Curved CRT Glass */
+    /* Curved CRT Glass Monitor Casing */
     .crt-screen {
       background: #000;
       border-radius: 8px;
-      padding: 0.75rem;
+      padding: 1rem;
       overflow: hidden;
-      font-size: clamp(6px, 1.3vw, 11px);
-      line-height: 1.05;
-      white-space: pre;
       position: relative;
-      min-height: 280px;
-      max-height: 70vh;
+      min-height: 380px;
+      max-height: 80vh;
       box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.95);
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Inner Terminal Screen Text (MUST BE BLOCK/PRE FOR VERTICAL LINE BREAKS) */
+    .crt-terminal-text {
+      display: block;
+      white-space: pre;
+      font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+      font-size: clamp(7.5px, 1.35vw, 12.5px);
+      line-height: 1.05;
       text-align: center;
+      margin: auto;
+      user-select: none;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      max-width: 100%;
     }
 
     /* Scanlines */
@@ -219,9 +232,11 @@
         padding: 0.5rem;
       }
       .crt-screen {
-        padding: 0.35rem;
-        font-size: clamp(4.8px, 2.05vw, 7.5px);
-        min-height: 200px;
+        padding: 0.5rem;
+        min-height: 240px;
+      }
+      .crt-terminal-text {
+        font-size: clamp(5.2px, 2.1vw, 8.5px);
       }
     }
   </style>
@@ -248,8 +263,8 @@
 
   <!-- CRT Monitor Frame -->
   <div class="crt-monitor">
-    <div id="crtDisplay" class="crt-screen scanlines crt-glow">
-      <!-- ANSI Frame Content Rendered Here -->
+    <div class="crt-screen scanlines crt-glow">
+      <pre id="crtDisplay" class="crt-terminal-text"><!-- ANSI Frame Content Rendered Here --></pre>
     </div>
     <div class="bottom-bar">
       <div class="badge-status">STREAM ACTIVE</div>

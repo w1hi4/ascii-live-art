@@ -1,6 +1,29 @@
 // --- Standalone CRT Terminal Player Script ---
 
-// ANSI to HTML Parser
+// Standard xterm 256-color palette mapper (Exact matches for terminal RGB)
+function ansi256ToRgb(code) {
+  if (code < 16) {
+    const std = [
+      "rgb(0,0,0)", "rgb(205,0,0)", "rgb(0,205,0)", "rgb(205,205,0)",
+      "rgb(0,0,238)", "rgb(205,0,205)", "rgb(0,205,205)", "rgb(229,229,229)",
+      "rgb(127,127,127)", "rgb(255,0,0)", "rgb(0,255,0)", "rgb(255,255,0)",
+      "rgb(92,92,255)", "rgb(255,0,255)", "rgb(0,255,255)", "rgb(255,255,255)"
+    ];
+    return std[code];
+  }
+  if (code <= 231) {
+    const c = code - 16;
+    const r = Math.floor(c / 36);
+    const g = Math.floor((c % 36) / 6);
+    const b = c % 6;
+    const v = [0, 95, 135, 175, 215, 255];
+    return `rgb(${v[r]},${v[g]},${v[b]})`;
+  }
+  const gray = 8 + (code - 232) * 10;
+  return `rgb(${gray},${gray},${gray})`;
+}
+
+// Complete ANSI to HTML Parser
 function ansiToHtml(text) {
   if (!text) return "";
 
@@ -28,26 +51,44 @@ function ansiToHtml(text) {
         let parts = code.split(";").map(Number);
         let i = 0;
         while (i < parts.length) {
-          if (parts[i] === 0) {
+          let p = parts[i];
+          if (p === 0) {
             if (curFg || curBg) {
               html += "</span>";
               curFg = null;
               curBg = null;
             }
             i++;
-          } else if (parts[i] === 38 && parts[i+1] === 2) {
-            curFg = `rgb(${parts[i+2]},${parts[i+3]},${parts[i+4]})`;
-            i += 5;
-          } else if (parts[i] === 48 && parts[i+1] === 2) {
-            curBg = `rgb(${parts[i+2]},${parts[i+3]},${parts[i+4]})`;
-            i += 5;
-          } else if (parts[i] === 38 && parts[i+1] === 5) {
-            let c = parts[i+2];
-            curFg = `hsl(${c * 1.4}, 80%, 60%)`;
-            i += 3;
-          } else if (parts[i] === 49) {
+          } else if (p >= 30 && p <= 37) {
+            curFg = ansi256ToRgb(p - 30);
+            i++;
+          } else if (p === 39) {
+            curFg = null;
+            i++;
+          } else if (p >= 40 && p <= 47) {
+            curBg = ansi256ToRgb(p - 40);
+            i++;
+          } else if (p === 49) {
             curBg = null;
             i++;
+          } else if (p >= 90 && p <= 97) {
+            curFg = ansi256ToRgb(p - 90 + 8);
+            i++;
+          } else if (p >= 100 && p <= 107) {
+            curBg = ansi256ToRgb(p - 100 + 8);
+            i++;
+          } else if (p === 38 && parts[i+1] === 5) {
+            curFg = ansi256ToRgb(parts[i+2] || 0);
+            i += 3;
+          } else if (p === 48 && parts[i+1] === 5) {
+            curBg = ansi256ToRgb(parts[i+2] || 0);
+            i += 3;
+          } else if (p === 38 && parts[i+1] === 2) {
+            curFg = `rgb(${parts[i+2]},${parts[i+3]},${parts[i+4]})`;
+            i += 5;
+          } else if (p === 48 && parts[i+1] === 2) {
+            curBg = `rgb(${parts[i+2]},${parts[i+3]},${parts[i+4]})`;
+            i += 5;
           } else {
             i++;
           }
