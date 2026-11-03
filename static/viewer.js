@@ -190,8 +190,65 @@ function copyCurl() {
   if (curlCmd) copyText(curlCmd.textContent);
 }
 
+// --- Dynamic Animated Favicon in Chrome Tab ---
+function initAnimatedFavicon() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const link = document.getElementById("dynamicFavicon") || document.querySelector("link[rel*='icon']");
+  if (!link) return;
+
+  let step = 0;
+  function drawFaviconFrame() {
+    if (document.hidden) return;
+
+    ctx.clearRect(0, 0, 32, 32);
+
+    ctx.fillStyle = "#0c1018";
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(1, 1, 30, 30, 7);
+    } else {
+      ctx.rect(1, 1, 30, 30);
+    }
+    ctx.fill();
+
+    ctx.strokeStyle = (step % 2 === 0) ? "#ffd700" : "#38bdf8";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.strokeStyle = "#ffd700";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(8, 10);
+    ctx.lineTo(15, 16);
+    ctx.lineTo(8, 22);
+    ctx.stroke();
+
+    if (step % 2 === 0) {
+      ctx.strokeStyle = (step === 0) ? "#22c55e" : "#38bdf8";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(18, 22);
+      ctx.lineTo(25, 22);
+      ctx.stroke();
+    }
+
+    step = (step + 1) % 4;
+    link.href = canvas.toDataURL("image/png");
+  }
+
+  setInterval(drawFaviconFrame, 450);
+}
+
 // Bind button listeners without inline handlers for CSP compliance
 document.addEventListener('DOMContentLoaded', () => {
+  initAnimatedFavicon();
   const btnCopy = document.getElementById('btnCopyCurl');
   if (btnCopy) btnCopy.addEventListener('click', copyCurl);
 

@@ -549,11 +549,25 @@ class ApiUploadHandler(BaseHandler):
             self.write(json.dumps({"success": False, "error": "An internal error occurred while processing media."}))
 
 
+class FaviconHandler(tornado.web.RequestHandler):
+    """Directly serves browser favicon requests."""
+    def get(self):
+        self.set_header("Content-Type", "image/x-icon")
+        self.set_header("Cache-Control", "public, max-age=86400")
+        ico_path = os.path.join(STATIC_DIR, "favicon.ico")
+        if os.path.exists(ico_path):
+            with open(ico_path, "rb") as f:
+                self.write(f.read())
+        else:
+            self.set_status(404)
+
+
 def make_app():
     return tornado.web.Application([
         (r"/", StudioHandler),
         (r"/health", HealthHandler),
         (r"/viewer", ViewerHandler),
+        (r"/favicon\.ico", FaviconHandler),
         (r"/api/stats", ApiStatsHandler),
         (r"/api/list", ApiListHandler),
         (r"/api/animation/(.*)", ApiAnimationHandler),
