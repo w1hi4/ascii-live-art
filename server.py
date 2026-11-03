@@ -199,7 +199,7 @@ def process_uploaded_media(body_bytes, width, mode, effect, contrast, brightness
     width = max(20, min(100, int(width)))
     contrast = max(0.2, min(3.0, float(contrast)))
     brightness = max(0.2, min(3.0, float(brightness)))
-    mode = mode if mode in ("halfblock", "ascii") else "halfblock"
+    mode = mode if mode in ("halfblock", "ascii") else "ascii"
     effect = effect if effect in ("scanner", "pulse", "matrix", "glitch") else "scanner"
 
     if is_gif:

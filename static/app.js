@@ -335,9 +335,9 @@ if (btnGenerate) {
       formData.append("file", selectedFile);
       formData.append("slug", slugInput ? slugInput.value : "");
       formData.append("title", titleInput ? titleInput.value : "");
-      formData.append("mode", modeSelect ? modeSelect.value : "halfblock");
+      formData.append("mode", modeSelect ? modeSelect.value : "ascii");
       formData.append("effect", effectSelect ? effectSelect.value : "scanner");
-      formData.append("width", "54");
+      formData.append("width", "62");
       formData.append("fps", "14");
 
       const res = await fetch("/api/upload", {

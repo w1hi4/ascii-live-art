@@ -20,7 +20,8 @@ ANSI_CLEAR = "\033[2J"
 ANSI_HIDE_CURSOR = "\033[?25l"
 ANSI_SHOW_CURSOR = "\033[?25h"
 
-DENSE_CHARS = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+# Master ASCII Density Ramp: from dark/shadows (' ') to bright highlights ('@', '$')
+DENSE_CHARS = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 SIMPLE_CHARS = " .:-=+*#%@"
 BLOCK_CHARS = " ░▒▓█"
 BINARY_CHARS = " 01"
