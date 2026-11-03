@@ -183,10 +183,10 @@ if (slugInput && slugStatus) {
     }
     const isTaken = allAnimations.some(a => a.slug === clean) || ["art", "donut", "fire", "api", "health", "viewer"].includes(clean);
     if (isTaken) {
-      slugStatus.textContent = "✗ Occupied in 50 slots";
+      slugStatus.textContent = "✗ Already taken";
       slugStatus.className = "slug-status-hint taken";
     } else {
-      slugStatus.textContent = "✓ Available in 50 slots";
+      slugStatus.textContent = "✓ Available";
       slugStatus.className = "slug-status-hint";
     }
   });
@@ -330,7 +330,7 @@ if (btnGenerate) {
           shareBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
 
-        showToast("Stream created! Active in top 50 slots.");
+        showToast("Stream created successfully!");
 
         if (result.capacity) {
           updateCapacityUI(result.capacity);
