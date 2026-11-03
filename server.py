@@ -53,7 +53,7 @@ class RateLimiter:
             self.history[ip] = valid
             return True
 
-UPLOAD_LIMITER = RateLimiter(max_requests=6, window_seconds=300) # 6 uploads per 5 mins per IP
+UPLOAD_LIMITER = RateLimiter(max_requests=30, window_seconds=60) # 30 uploads per min per IP
 API_LIMITER = RateLimiter(max_requests=180, window_seconds=60)   # 180 requests per min per IP
 
 def get_client_ip(handler):
@@ -62,6 +62,16 @@ def get_client_ip(handler):
     if x_forwarded:
         return x_forwarded.split(",")[0].strip()
     return handler.request.headers.get("X-Real-IP", handler.request.remote_ip or "127.0.0.1")
+
+def get_request_proto(handler):
+    """Accurately determines protocol (HTTPS / HTTP) behind reverse proxies."""
+    proto = handler.request.headers.get("X-Forwarded-Proto")
+    if proto:
+        return proto.split(",")[0].strip()
+    host = handler.request.host.lower()
+    if "localhost" not in host and "127.0.0.1" not in host:
+        return "https"
+    return handler.request.protocol or "http"
 
 # --- Security: Slug Generator & Validator ---
 
@@ -238,6 +248,7 @@ class BaseHandler(tornado.web.RequestHandler):
         self.set_header("Permissions-Policy", "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()")
         self.set_header("Content-Security-Policy", (
             "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
@@ -397,9 +408,10 @@ class ApiListHandler(BaseHandler):
             search = re.sub(r"[^\w\s-]", "", search)[:50]
 
         animations = db.list_animations(limit=limit, offset=offset, search=search, sort_by=sort_by)
+        proto = get_request_proto(self)
         for item in animations:
-            item["curl_cmd"] = f"curl -s http://{host}/{item['slug']}"
-            item["url"] = f"http://{host}/{item['slug']}"
+            item["curl_cmd"] = f"curl -sL {proto}://{host}/{item['slug']}"
+            item["url"] = f"{proto}://{host}/{item['slug']}"
 
         self.set_header("Content-Type", "application/json")
         self.write(json.dumps({
@@ -426,9 +438,10 @@ class ApiAnimationHandler(BaseHandler):
             return
 
         host = self.request.host
+        proto = get_request_proto(self)
         resp = dict(anim)
-        resp["curl_cmd"] = f"curl -s http://{host}/{slug}"
-        resp["url"] = f"http://{host}/{slug}"
+        resp["curl_cmd"] = f"curl -sL {proto}://{host}/{slug}"
+        resp["url"] = f"{proto}://{host}/{slug}"
         self.set_header("Content-Type", "application/json")
         self.write(json.dumps(resp))
 
@@ -514,14 +527,15 @@ class ApiUploadHandler(BaseHandler):
             db.save_animation(slug, title, fps, width, mode, effect, frames)
 
             host = self.request.host
+            proto = get_request_proto(self)
             capacity_stats = db.get_capacity_stats()
             self.set_header("Content-Type", "application/json")
             self.write(json.dumps({
                 "success": True,
                 "slug": slug,
                 "title": title,
-                "curl_cmd": f"curl -s http://{host}/{slug}",
-                "url": f"http://{host}/{slug}",
+                "curl_cmd": f"curl -sL {proto}://{host}/{slug}",
+                "url": f"{proto}://{host}/{slug}",
                 "total_frames": len(frames),
                 "fps": fps,
                 "capacity": capacity_stats

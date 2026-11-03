@@ -219,7 +219,9 @@
 <body>
 
   <!-- Floating Toast -->
-  <div id="toast" class="toast">Copied to clipboard!</div>
+  <div id="toast" class="toast">
+    <span id="toastMsg">Copied to clipboard!</span>
+  </div>
 
   <!-- Top Action Bar -->
   <div class="action-bar">
@@ -228,9 +230,9 @@
       <div class="cmd-box" id="curlCmd">Loading command...</div>
     </div>
     <div class="btn-group">
-      <button class="btn-action" onclick="copyCurl()">📋 Copy curl</button>
-      <button class="btn-action" id="btnPause" onclick="togglePlay()">⏸️ Pause</button>
-      <button class="btn-action" onclick="toggleScanlines()">📺 Scanlines</button>
+      <button class="btn-action" id="btnCopyCurl">📋 Copy curl</button>
+      <button class="btn-action" id="btnPause">⏸️ Pause</button>
+      <button class="btn-action" id="btnToggleScanlines">📺 Scanlines</button>
     </div>
   </div>
 
@@ -245,73 +247,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js"></script>
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const slug = urlParams.get('slug') || 'art';
-    const display = document.getElementById('crtDisplay');
-    const curlCmd = document.getElementById('curlCmd');
-    const frameMeta = document.getElementById('frameMeta');
-    const btnPause = document.getElementById('btnPause');
-
-    let viewerFrames = [];
-    let viewerFps = 14;
-    let viewerIdx = 0;
-    let viewerTimer = null;
-    let isPlaying = true;
-
-    async function initViewer() {
-      const proto = window.location.protocol;
-      curlCmd.textContent = `curl -s ${proto}//${window.location.host}/${slug}`;
-      try {
-        const res = await fetch(`/api/animation/${slug}`);
-        if (!res.ok) {
-          display.textContent = `Animation '${slug}' not found.`;
-          return;
-        }
-        const data = await res.json();
-        viewerFrames = data.frames || [];
-        viewerFps = data.fps || 14;
-        frameMeta.textContent = `${data.title} • ${data.width} cols • ${viewerFps} FPS`;
-
-        startViewerLoop();
-      } catch (e) {
-        display.textContent = `Error loading animation: ${e.message}`;
-      }
-    }
-
-    function startViewerLoop() {
-      if (viewerTimer) clearInterval(viewerTimer);
-      if (!viewerFrames || viewerFrames.length === 0) return;
-      
-      const delay = Math.max(20, Math.floor(1000 / viewerFps));
-      viewerTimer = setInterval(() => {
-        display.innerHTML = ansiToHtml(viewerFrames[viewerIdx]);
-        viewerIdx = (viewerIdx + 1) % viewerFrames.length;
-      }, delay);
-    }
-
-    function togglePlay() {
-      if (isPlaying) {
-        clearInterval(viewerTimer);
-        btnPause.textContent = "▶️ Play";
-        isPlaying = false;
-      } else {
-        startViewerLoop();
-        btnPause.textContent = "⏸️ Pause";
-        isPlaying = true;
-      }
-    }
-
-    function toggleScanlines() {
-      display.classList.toggle('scanlines');
-    }
-
-    function copyCurl() {
-      copyText(curlCmd.textContent);
-    }
-
-    window.addEventListener('DOMContentLoaded', initViewer);
-  </script>
+  <script src="/static/viewer.js"></script>
 </body>
 </html>

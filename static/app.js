@@ -75,9 +75,8 @@ function ansiToHtml(text) {
 let toastTimeout = null;
 function showToast(message) {
   const toast = document.getElementById("toast");
-  const msgEl = document.getElementById("toastMsg");
-  if (!toast || !msgEl) return;
-  
+  if (!toast) return;
+  const msgEl = document.getElementById("toastMsg") || toast;
   msgEl.textContent = message;
   toast.classList.add("show");
   
@@ -276,15 +275,23 @@ function handleFile(file) {
 // --- Publish Animation ---
 if (btnGenerate) {
   btnGenerate.addEventListener("click", async () => {
+    if (!selectedFile) {
+      showToast("Please choose or drop an image or GIF first!");
+      if (dropzone) {
+        dropzone.classList.add("dragover");
+        setTimeout(() => dropzone.classList.remove("dragover"), 1200);
+        dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+
     btnGenerate.disabled = true;
     const originalText = btnGenerate.innerHTML;
     btnGenerate.innerHTML = `<span class="btn-spinner"></span><span>Baking Animation...</span>`;
 
     try {
       const formData = new FormData();
-      if (selectedFile) {
-        formData.append("file", selectedFile);
-      }
+      formData.append("file", selectedFile);
       formData.append("slug", slugInput ? slugInput.value : "");
       formData.append("title", titleInput ? titleInput.value : "");
       formData.append("mode", modeSelect ? modeSelect.value : "halfblock");
@@ -300,10 +307,28 @@ if (btnGenerate) {
       const result = await res.json();
       if (result.success) {
         const proto = window.location.protocol;
-        const liveCurl = `curl -s ${proto}//${window.location.host}/${result.slug}`;
+        const liveCurl = `curl -sL ${proto}//${window.location.host}/${result.slug}`;
 
         if (shareCurl) shareCurl.textContent = liveCurl;
-        if (shareBanner) shareBanner.classList.add("active");
+        if (shareBanner) {
+          shareBanner.classList.add("active");
+          let viewerBtn = document.getElementById("btnShareViewer");
+          if (!viewerBtn) {
+            viewerBtn = document.createElement("a");
+            viewerBtn.id = "btnShareViewer";
+            viewerBtn.className = "btn-secondary";
+            viewerBtn.style.padding = "0.35rem 0.75rem";
+            viewerBtn.style.fontSize = "0.75rem";
+            viewerBtn.style.textDecoration = "none";
+            viewerBtn.textContent = "▶️ Open in CRT Player";
+            const actionsBar = shareBanner.querySelector(".success-cmd-bar");
+            if (actionsBar) actionsBar.appendChild(viewerBtn);
+          }
+          if (viewerBtn) {
+            viewerBtn.href = `/viewer?slug=${encodeURIComponent(result.slug)}`;
+          }
+          shareBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
 
         showToast("Stream created! Active in top 50 slots.");
 
@@ -566,7 +591,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const heroCmd = document.getElementById("heroCmd");
   if (heroCmd) {
     const proto = window.location.protocol;
-    heroCmd.textContent = `curl -s ${proto}//${window.location.host}/art`;
+    heroCmd.textContent = `curl -sL ${proto}//${window.location.host}/art`;
   }
   loadPreview("art");
   loadGallery();

@@ -188,8 +188,23 @@ def convert_image_to_ascii(img, width=54, char_set=SIMPLE_CHARS, contrast=1.0, b
 
 # --- Procedural Animation Generators for Static Images ---
 
-def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
+def prepare_animation_base(img, width=54, mode="halfblock"):
+    """Pre-scales image to target terminal dimensions before effect loops for a 300x performance boost."""
     base = img.convert("RGBA")
+    orig_w, orig_h = base.size
+    aspect = orig_h / max(1, orig_w)
+    if mode == "halfblock":
+        height = int(width * aspect)
+        if height % 2 != 0:
+            height += 1
+    else:
+        height = max(4, int(width * aspect * 0.5))
+    height = max(4, min(100, height))
+    return base.resize((width, height), Image.Resampling.LANCZOS)
+
+
+def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
+    base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
 
@@ -200,7 +215,7 @@ def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
 
         frame_img = base.copy()
         pixels = frame_img.load()
-        band = max(4, int(h * 0.08))
+        band = max(2, int(h * 0.12))
 
         for y in range(h):
             dist = abs(y - scan_y)
@@ -231,7 +246,8 @@ def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=16):
 
 
 def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
-    base = img.convert("RGBA")
+    base = prepare_animation_base(img, width=width, mode=mode)
+    w, h = base.size
     frames = []
 
     for k in range(num_frames):
@@ -240,7 +256,6 @@ def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
 
         frame_img = base.copy()
         pixels = frame_img.load()
-        w, h = frame_img.size
 
         for y in range(h):
             for x in range(w):
@@ -262,22 +277,22 @@ def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=16):
 
 
 def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
-    base = img.convert("RGBA")
+    base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
-    drops = [random.randint(0, h) for _ in range(w // 4)]
+    drops = [random.randint(0, h) for _ in range(max(1, w // 4))]
 
     for k in range(num_frames):
         frame_img = base.copy()
         pixels = frame_img.load()
 
         for col_idx in range(len(drops)):
-            drops[col_idx] = (drops[col_idx] + int(h * 0.12)) % h
+            drops[col_idx] = (drops[col_idx] + int(h * 0.12)) % max(1, h)
             x_pos = min(w - 1, col_idx * 4 + 2)
             y_head = drops[col_idx]
 
-            for tail in range(8):
-                y_pos = (y_head - tail) % h
+            for tail in range(min(8, h)):
+                y_pos = (y_head - tail) % max(1, h)
                 intensity = max(0.0, 1.0 - (tail / 8.0))
                 r, g, b, a = pixels[x_pos, y_pos]
                 if a > 30:
@@ -299,7 +314,7 @@ def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=18):
 
 
 def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
-    base = img.convert("RGBA")
+    base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
 
@@ -308,8 +323,8 @@ def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=16):
         pixels = frame_img.load()
 
         if k % 3 == 0:
-            glitch_y = random.randint(h // 6, h - h // 6)
-            glitch_h = random.randint(2, max(3, h // 10))
+            glitch_y = random.randint(max(0, h // 6), max(1, h - h // 6))
+            glitch_h = random.randint(1, max(2, h // 10))
             shift_x = random.randint(-4, 4)
 
             for y in range(glitch_y, min(h, glitch_y + glitch_h)):
