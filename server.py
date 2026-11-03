@@ -475,11 +475,11 @@ class ApiUploadHandler(BaseHandler):
             # 2. Strict Slug Validation (Anti-Path Traversal, Anti-Injection)
             if slug:
                 slug = re.sub(r"[^a-z0-9-]", "", slug).strip("-")
-                if not re.match(r"^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$", slug) or len(slug) < 2:
+                if not re.match(r"^[a-z0-9][a-z0-9-]{0,14}[a-z0-9]$", slug) or len(slug) < 2:
                     self.set_status(400)
                     self.write(json.dumps({
                         "success": False,
-                        "error": "Slug must be between 2 and 32 characters, starting and ending with alphanumeric characters (a-z, 0-9, hyphens)."
+                        "error": "Slug must be between 2 and 16 characters, starting and ending with alphanumeric characters (a-z, 0-9, hyphens)."
                     }))
                     return
                 if slug in RESERVED_SLUGS:
