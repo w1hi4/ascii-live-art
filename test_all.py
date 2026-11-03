@@ -52,7 +52,23 @@ def test_donut_engine():
     assert len(donut_frames) == 6, "Expected 6 donut frames"
     assert "\033[H" in donut_frames[0], "Donut frame missing ANSI Home"
 
-# --- 4. Server Initialization & Preloaded Animations ---
+# --- 4. High-Fidelity Image to ASCII Engine (No Double-Squishing & Clean Typography) ---
+def test_image_ascii_converter():
+    import ascii_engine
+    from PIL import Image
+    test_img = Image.new("RGBA", (200, 200), color=(30, 40, 80, 255))
+    frames = ascii_engine.generate_scanner_frames(test_img, width=54, mode="ascii", num_frames=4)
+    assert len(frames) == 4, f"Expected 4 frames, got {len(frames)}"
+    f0_lines = [l for l in frames[0].split("\n") if l.strip()]
+    assert len(f0_lines) == 26, f"Expected 26 lines for 1:1 image, got {len(f0_lines)}"
+    clean = re.sub(r'\x1b\[[0-9;?]*[a-zA-Z]', '', frames[0])
+    alpha_words = re.findall(r'[a-zA-Z]{4,}', clean)
+    assert len(alpha_words) == 0, f"Alphabet soup detected in ASCII output: {alpha_words}"
+    hb_frames = ascii_engine.generate_scanner_frames(test_img, width=54, mode="halfblock", num_frames=4)
+    hb_lines = [l for l in hb_frames[0].split("\n") if l.strip()]
+    assert len(hb_lines) == 24, f"Expected 24 halfblock lines, got {len(hb_lines)}"
+
+# --- 5. Server Initialization & Preloaded Animations ---
 def test_server_initialization():
     import db
     import server
@@ -163,6 +179,7 @@ tests = [
     ("Environment & Core Files", test_environment_and_assets),
     ("Flagship Art Banner Generator", test_flagship_art_generator),
     ("3D Mathematical Donut Engine", test_donut_engine),
+    ("Image to ASCII Conversion Engine", test_image_ascii_converter),
     ("Server In-Memory Registry & Default Presets", test_server_initialization),
     ("Offline CLI Player (play_ascii.py)", test_offline_player),
     ("API Handlers & Tornado Route Manifest", test_api_handlers),

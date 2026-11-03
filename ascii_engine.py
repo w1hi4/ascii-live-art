@@ -20,8 +20,8 @@ ANSI_CLEAR = "\033[2J"
 ANSI_HIDE_CURSOR = "\033[?25l"
 ANSI_SHOW_CURSOR = "\033[?25h"
 
-# Master ASCII Density Ramp: from dark/shadows (' ') to bright highlights ('@', '$')
-DENSE_CHARS = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+# Master ASCII Density Ramp: clean, ordered, non-alphabetic character typography
+DENSE_CHARS = " .'-:,;!~=+|/\\?*#&8$%@"
 SIMPLE_CHARS = " .:-=+*#%@"
 BLOCK_CHARS = " ░▒▓█"
 BINARY_CHARS = " 01"
@@ -103,13 +103,16 @@ def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
         img = enh.enhance(brightness)
 
     orig_w, orig_h = img.size
-    aspect = orig_h / max(1, orig_w)
-    # Clamp height so it fits within standard 24-line terminals (44-46 halfblock rows = 22-23 text lines)
-    height = max(8, min(46, int(width * aspect)))
-    if height % 2 != 0:
-        height += 1
-
-    resized = img.resize((width, height), Image.Resampling.LANCZOS)
+    if orig_w == width:
+        height = orig_h
+        resized = img
+    else:
+        aspect = orig_h / max(1, orig_w)
+        # Clamp height so it fits within standard 24-line terminals (48 halfblock rows = 24 text lines)
+        height = max(8, min(48, int(width * aspect)))
+        if height % 2 != 0:
+            height += 1
+        resized = img.resize((width, height), Image.Resampling.LANCZOS)
     light_bg = is_light_background(resized)
     lines = []
 
@@ -184,11 +187,15 @@ def convert_image_to_ascii(img, width=54, char_set=None, contrast=1.0, brightnes
         img = enh.enhance(brightness)
 
     orig_w, orig_h = img.size
-    aspect = orig_h / max(1, orig_w)
-    # Clamp height to fit within standard 24-line terminals (max 22 lines)
-    height = max(6, min(22, int(width * aspect * 0.48)))
+    if orig_w == width:
+        height = orig_h
+        resized = img
+    else:
+        aspect = orig_h / max(1, orig_w)
+        # 1 monospace character cell is ~2:1 tall:wide; terminal-safe height up to 26 lines
+        height = max(8, min(26, int(width * aspect * 0.5)))
+        resized = img.resize((width, height), Image.Resampling.LANCZOS)
 
-    resized = img.resize((width, height), Image.Resampling.LANCZOS)
     light_bg = is_light_background(resized)
     lines = []
     num_chars = len(char_set)
@@ -198,7 +205,7 @@ def convert_image_to_ascii(img, width=54, char_set=None, contrast=1.0, brightnes
         cur_fg = None
         for x in range(width):
             r, g, b, a = resized.getpixel((x, y))
-            is_bg = a < 40 or (light_bg and (r + g + b) // 3 >= 236)
+            is_bg = a < 40 or (light_bg and (r + g + b) // 3 >= 236) or (not light_bg and (r + g + b) // 3 < 16)
 
             if is_bg:
                 if cur_fg is not None:
@@ -212,7 +219,8 @@ def convert_image_to_ascii(img, width=54, char_set=None, contrast=1.0, brightnes
                     r, g, b = 255, 215, 0
                     gray = 220
 
-                char_idx = min(num_chars - 1, max(0, gray * num_chars // 256))
+                val = max(0, min(255, int((gray - 16) * 255 / (240 - 16)))) if not light_bg else gray
+                char_idx = min(num_chars - 1, val * num_chars // 256)
                 char = char_set[char_idx]
 
                 if cur_fg != (r, g, b):
@@ -245,13 +253,13 @@ def prepare_animation_base(img, width=54, mode="halfblock"):
     orig_w, orig_h = base.size
     aspect = orig_h / max(1, orig_w)
     if mode == "halfblock":
-        # 1 character cell is 2 vertical pixels; clamp to max 46 pixels (23 text lines)
-        height = max(8, min(46, int(width * aspect)))
+        # 1 character cell is 2 vertical pixels; clamp to max 48 pixels (24 text lines)
+        height = max(8, min(48, int(width * aspect)))
         if height % 2 != 0:
             height += 1
     else:
-        # Standard character cell aspect ratio ~2:1; clamp to max 22 lines
-        height = max(6, min(22, int(width * aspect * 0.48)))
+        # Monospace character aspect ratio ~2:1; clamp to max 26 text lines
+        height = max(8, min(26, int(width * aspect * 0.5)))
 
     return base.resize((width, height), Image.Resampling.LANCZOS)
 
@@ -418,7 +426,7 @@ def convert_gif_to_frames(gif_path, width=54, mode="halfblock", max_frames=MAX_G
         if mode == "halfblock":
             text = convert_image_to_halfblock(rgba, width=width)
         else:
-            text = convert_image_to_ascii(rgba, width=width, char_set=SIMPLE_CHARS)
+            text = convert_image_to_ascii(rgba, width=width, char_set=DENSE_CHARS)
 
         frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
 
