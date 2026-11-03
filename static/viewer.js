@@ -176,7 +176,7 @@ let isPlaying = true;
 async function initViewer() {
   const proto = window.location.protocol;
   if (curlCmd) {
-    curlCmd.textContent = `curl -sL ${proto}//${window.location.host}/${slug}`;
+    curlCmd.textContent = `curl -sN ${proto}//${window.location.host}/${slug}`;
   }
   try {
     const res = await fetch(`/api/animation/${slug}`);

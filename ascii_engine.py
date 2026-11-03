@@ -73,7 +73,7 @@ def generate_flagship_art_frames(num_frames=20):
         eq_line += " │"
         lines.append(eq_line)
         lines.append(f"\033[38;2;120;120;140m{border_bot}\033[0m")
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}" + "\n".join(lines) + f"{ANSI_RESET}\n")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}" + "\n".join(lines) + f"{ANSI_RESET}")
     return frames
 
 # --- Image Conversion to ANSI Frames ---
@@ -108,8 +108,8 @@ def convert_image_to_halfblock(img, width=54, contrast=1.0, brightness=1.0):
         resized = img
     else:
         aspect = orig_h / max(1, orig_w)
-        # Clamp height so it fits within standard 24-line terminals (48 halfblock rows = 24 text lines)
-        height = max(8, min(48, int(width * aspect)))
+        # Clamp height so it fits within standard 24-line terminals (44 halfblock rows = 22 text lines)
+        height = max(8, min(44, int(width * aspect)))
         if height % 2 != 0:
             height += 1
         resized = img.resize((width, height), Image.Resampling.LANCZOS)
@@ -192,8 +192,8 @@ def convert_image_to_ascii(img, width=54, char_set=None, contrast=1.0, brightnes
         resized = img
     else:
         aspect = orig_h / max(1, orig_w)
-        # 1 monospace character cell is ~2:1 tall:wide; terminal-safe height up to 26 lines
-        height = max(8, min(26, int(width * aspect * 0.5)))
+        # 1 monospace character cell is ~2:1 tall:wide; terminal-safe height up to 22 lines (fits in 24-row viewport)
+        height = max(8, min(22, int(width * aspect * 0.5)))
         resized = img.resize((width, height), Image.Resampling.LANCZOS)
 
     light_bg = is_light_background(resized)
@@ -253,13 +253,13 @@ def prepare_animation_base(img, width=54, mode="halfblock"):
     orig_w, orig_h = base.size
     aspect = orig_h / max(1, orig_w)
     if mode == "halfblock":
-        # 1 character cell is 2 vertical pixels; clamp to max 48 pixels (24 text lines)
-        height = max(8, min(48, int(width * aspect)))
+        # 1 character cell is 2 vertical pixels; clamp to max 44 pixels (22 text lines)
+        height = max(8, min(44, int(width * aspect)))
         if height % 2 != 0:
             height += 1
     else:
-        # Monospace character aspect ratio ~2:1; clamp to max 26 text lines
-        height = max(8, min(26, int(width * aspect * 0.5)))
+        # Monospace character aspect ratio ~2:1; clamp to max 22 text lines (fits in standard 24-row terminal)
+        height = max(8, min(22, int(width * aspect * 0.5)))
 
     return base.resize((width, height), Image.Resampling.LANCZOS)
 
@@ -301,7 +301,7 @@ def generate_scanner_frames(img, width=54, mode="halfblock", num_frames=18):
         else:
             text = convert_image_to_ascii(frame_img, width=width, char_set=DENSE_CHARS)
 
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}")
 
     return frames
 
@@ -332,7 +332,7 @@ def generate_pulse_frames(img, width=54, mode="halfblock", num_frames=18):
         else:
             text = convert_image_to_ascii(frame_img, width=width, char_set=DENSE_CHARS)
 
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}")
 
     return frames
 
@@ -341,37 +341,112 @@ def generate_matrix_frames(img, width=54, mode="halfblock", num_frames=20):
     base = prepare_animation_base(img, width=width, mode=mode)
     w, h = base.size
     frames = []
-    num_cols = max(4, w // 3)
-    col_x = [int(i * (w / num_cols)) for i in range(num_cols)]
-    drops = [(random.randint(0, h), random.randint(3, 8)) for _ in range(num_cols)]
 
-    for k in range(num_frames):
-        frame_img = base.copy()
-        pixels = frame_img.load()
+    if mode == "halfblock":
+        num_cols = max(4, w // 3)
+        col_x = [int(i * (w / num_cols)) for i in range(num_cols)]
+        drops = [(random.randint(0, h), random.randint(4, 9)) for _ in range(num_cols)]
 
-        for i, (y_head, tail_len) in enumerate(drops):
-            current_head = (y_head + int(k * 1.8)) % max(1, h)
-            x_pos = min(w - 1, col_x[i])
+        for k in range(num_frames):
+            frame_img = base.copy()
+            pixels = frame_img.load()
 
-            for t in range(tail_len):
-                y_pos = (current_head - t) % max(1, h)
-                intensity = 1.0 - (t / max(1, tail_len))
-                r, g, b, a = pixels[x_pos, y_pos]
-                if a > 30:
-                    if t == 0:
-                        pixels[x_pos, y_pos] = (235, 255, 240, a)
-                    else:
-                        mg = min(255, int(g * 0.5 + 220 * intensity))
-                        mr = min(255, int(r * 0.3 + 30 * intensity))
-                        mb = min(255, int(b * 0.3 + 50 * intensity))
-                        pixels[x_pos, y_pos] = (mr, mg, mb, a)
+            for i, (y_head, tail_len) in enumerate(drops):
+                current_head = (y_head + int(k * 1.8)) % max(1, h)
+                x_pos = min(w - 1, col_x[i])
 
-        if mode == "halfblock":
+                for t in range(tail_len):
+                    y_pos = (current_head - t) % max(1, h)
+                    intensity = 1.0 - (t / max(1, tail_len))
+                    r, g, b, a = pixels[x_pos, y_pos]
+                    if a > 30:
+                        if t == 0:
+                            pixels[x_pos, y_pos] = (240, 255, 240, a)
+                        else:
+                            mg = min(255, int(g * 0.5 + 220 * intensity))
+                            mr = min(255, int(r * 0.3 + 30 * intensity))
+                            mb = min(255, int(b * 0.3 + 50 * intensity))
+                            pixels[x_pos, y_pos] = (mr, mg, mb, a)
+
             text = convert_image_to_halfblock(frame_img, width=width)
-        else:
-            text = convert_image_to_ascii(frame_img, width=width, char_set=BINARY_CHARS)
+            frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}")
+    else:
+        # Authentic fluctuating Matrix digital rain waterfall in Truecolor ASCII
+        CYBER_GLYPHS = "01:;*+=%#&8?$@~|/\\"
+        streams = []
+        for x in range(w):
+            if random.random() < 0.65:
+                streams.append({
+                    "x": x,
+                    "speed": random.choice([1, 2, 2, 3]),
+                    "start_y": random.randint(0, h * 2),
+                    "length": random.randint(4, 9)
+                })
 
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+        for k in range(num_frames):
+            lines = []
+            for y in range(h):
+                line = ""
+                cur_fg = None
+                for x in range(w):
+                    r, g, b, a = base.getpixel((x, y))
+                    gray = int(0.299 * r + 0.587 * g + 0.114 * b)
+                    is_subject = a > 40 and gray >= 16
+
+                    # Check rain stream passing through (x, y)
+                    stream_intensity = 0.0
+                    is_head = False
+                    for s in streams:
+                        if s["x"] == x:
+                            head_y = (s["start_y"] + k * s["speed"]) % (h + 8)
+                            dist = head_y - y
+                            if 0 <= dist < s["length"]:
+                                if dist == 0:
+                                    is_head = True
+                                    stream_intensity = 1.0
+                                else:
+                                    stream_intensity = max(stream_intensity, 1.0 - (dist / s["length"]))
+
+                    if stream_intensity > 0:
+                        # Dynamic fluctuating character on every frame!
+                        char = random.choice(CYBER_GLYPHS)
+                        if is_head:
+                            fg = (245, 255, 245)
+                        else:
+                            fg = (int(20 + 30 * stream_intensity), int(120 + 135 * stream_intensity), int(40 + 60 * stream_intensity))
+                    elif is_subject:
+                        val = max(0, min(255, int((gray - 16) * 255 / (240 - 16))))
+                        idx = min(len(CYBER_GLYPHS) - 1, val * len(CYBER_GLYPHS) // 256)
+                        # 25% chance of subtle character shimmer
+                        if random.random() < 0.25:
+                            offset = random.choice([-1, 1])
+                            idx = max(0, min(len(CYBER_GLYPHS) - 1, idx + offset))
+                        char = CYBER_GLYPHS[idx]
+                        sr = min(255, int(r * 0.4 + 10))
+                        sg = min(255, int(g * 0.7 + 140 * (val / 255)))
+                        sb = min(255, int(b * 0.4 + 20))
+                        fg = (sr, sg, sb)
+                    else:
+                        char = " "
+                        fg = None
+
+                    if char == " ":
+                        if cur_fg is not None:
+                            line += ANSI_RESET
+                            cur_fg = None
+                        line += " "
+                    else:
+                        if cur_fg != fg:
+                            line += ansi_rgb_fg(fg[0], fg[1], fg[2])
+                            cur_fg = fg
+                        line += char
+
+                if cur_fg is not None:
+                    line += ANSI_RESET
+                lines.append(line)
+
+            text = "\n".join(lines)
+            frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}")
 
     return frames
 
@@ -404,7 +479,7 @@ def generate_glitch_frames(img, width=54, mode="halfblock", num_frames=18):
         else:
             text = convert_image_to_ascii(frame_img, width=width, char_set=DENSE_CHARS)
 
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}")
 
     return frames
 
@@ -428,7 +503,7 @@ def convert_gif_to_frames(gif_path, width=54, mode="halfblock", max_frames=MAX_G
         else:
             text = convert_image_to_ascii(rgba, width=width, char_set=DENSE_CHARS)
 
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}\n")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{text}{ANSI_RESET}")
 
     avg_duration = sum(durations) / max(1, len(durations))
     delay_ms = int(avg_duration) if avg_duration > 20 else 80
@@ -470,6 +545,6 @@ def generate_donut_frames(num_frames=24, width=50, height=22):
 
         lines = ["".join(b[row * width : (row + 1) * width]) for row in range(height)]
         frame_text = "\n".join(lines)
-        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{frame_text}{ANSI_RESET}\n")
+        frames.append(f"{ANSI_HOME}{ANSI_HIDE_CURSOR}{frame_text}{ANSI_RESET}")
 
     return frames

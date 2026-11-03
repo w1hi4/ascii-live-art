@@ -348,7 +348,7 @@ if (btnGenerate) {
       const result = await res.json();
       if (result.success) {
         const proto = window.location.protocol;
-        const liveCurl = `curl -sL ${proto}//${window.location.host}/${result.slug}`;
+        const liveCurl = `curl -sN ${proto}//${window.location.host}/${result.slug}`;
 
         if (shareCurl) shareCurl.textContent = liveCurl;
         if (shareBanner) {
@@ -456,7 +456,7 @@ function filterAndRenderStreams() {
   let html = "";
 
   for (let item of filtered) {
-    const liveCmd = `curl -s ${proto}//${host}/${item.slug}`;
+    const liveCmd = `curl -sN ${proto}//${host}/${item.slug}`;
     const modeBadge = item.mode === "halfblock" ? "24-bit Truecolor" : "ASCII Density";
     const highlightedSlug = highlightText("/" + item.slug, q);
     const highlightedTitle = highlightText(item.title || item.slug, q);
@@ -684,7 +684,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const heroCmd = document.getElementById("heroCmd");
   if (heroCmd) {
     const proto = window.location.protocol;
-    heroCmd.textContent = `curl -sL ${proto}//${window.location.host}/art`;
+    heroCmd.textContent = `curl -sN ${proto}//${window.location.host}/art`;
   }
   initAnimatedFavicon();
   loadPreview("art");

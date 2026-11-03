@@ -60,13 +60,17 @@ def test_image_ascii_converter():
     frames = ascii_engine.generate_scanner_frames(test_img, width=54, mode="ascii", num_frames=4)
     assert len(frames) == 4, f"Expected 4 frames, got {len(frames)}"
     f0_lines = [l for l in frames[0].split("\n") if l.strip()]
-    assert len(f0_lines) == 26, f"Expected 26 lines for 1:1 image, got {len(f0_lines)}"
+    assert len(f0_lines) == 22, f"Expected 22 lines for 1:1 image, got {len(f0_lines)}"
     clean = re.sub(r'\x1b\[[0-9;?]*[a-zA-Z]', '', frames[0])
     alpha_words = re.findall(r'[a-zA-Z]{4,}', clean)
     assert len(alpha_words) == 0, f"Alphabet soup detected in ASCII output: {alpha_words}"
     hb_frames = ascii_engine.generate_scanner_frames(test_img, width=54, mode="halfblock", num_frames=4)
     hb_lines = [l for l in hb_frames[0].split("\n") if l.strip()]
-    assert len(hb_lines) == 24, f"Expected 24 halfblock lines, got {len(hb_lines)}"
+    assert len(hb_lines) == 22, f"Expected 22 halfblock lines, got {len(hb_lines)}"
+    # Test Matrix Rain fluctuation
+    mat_frames = ascii_engine.generate_matrix_frames(test_img, width=54, mode="ascii", num_frames=4)
+    assert len(mat_frames) == 4
+    assert mat_frames[0] != mat_frames[1], "Matrix frames must fluctuate across iterations!"
 
 # --- 5. Server Initialization & Preloaded Animations ---
 def test_server_initialization():
