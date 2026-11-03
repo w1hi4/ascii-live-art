@@ -125,6 +125,8 @@ def test_static_ui_integrity():
         assert "dropzone" in html
         assert "btnGenerate" in html
         assert "streamsBody" in html
+        assert "paginationBar" in html
+        assert "btn-page-size" in html
 
     with open("static/viewer.html", "r", encoding="utf-8") as f:
         viewer = f.read()
@@ -137,6 +139,7 @@ def test_static_ui_integrity():
         assert "function ansiToHtml" in js
         assert "loadPreview" in js
         assert "copyText" in js
+        assert "streamsPageSize" in js
 
 # --- 8. Strict Capacity (Max 50 Slots) & FIFO Eviction ---
 def test_capacity_and_eviction():

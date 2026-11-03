@@ -170,6 +170,8 @@ let allAnimations = [];
 let activeFilter = "all";
 let activeSearchQuery = "";
 let serverSearchTimer = null;
+let currentStreamsPage = 1;
+let streamsPageSize = 4; // Default 4 streams per page to keep page compact
 
 // --- DOM Elements ---
 const terminalScreen = document.getElementById("terminalScreen");
@@ -427,12 +429,46 @@ function filterAndRenderStreams() {
     return true;
   });
 
+  // Calculate Pagination Slices (Default 4 streams per page)
+  const totalItems = filtered.length;
+  const isAll = streamsPageSize === "all";
+  const perPage = isAll ? Math.max(1, totalItems) : streamsPageSize;
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+
+  if (currentStreamsPage > totalPages) currentStreamsPage = totalPages;
+  if (currentStreamsPage < 1) currentStreamsPage = 1;
+
+  const startIdx = isAll ? 0 : (currentStreamsPage - 1) * perPage;
+  const endIdx = isAll ? totalItems : Math.min(startIdx + perPage, totalItems);
+  const pageItems = filtered.slice(startIdx, endIdx);
+
   // Update Result Count Badge
   if (searchResultsCount) {
     if (q || filter !== "all") {
       searchResultsCount.textContent = `${filtered.length} OF ${allAnimations.length} MATCHES`;
     } else {
       searchResultsCount.textContent = `${allAnimations.length} STREAMS`;
+    }
+  }
+
+  // Update Pagination & Page Size UI Controls
+  const paginationBar = document.getElementById("paginationBar");
+  if (paginationBar) {
+    if (totalItems === 0) {
+      paginationBar.style.display = "none";
+    } else {
+      paginationBar.style.display = "flex";
+      const rangeText = document.getElementById("pageRangeText");
+      const totalText = document.getElementById("pageTotalText");
+      const numText = document.getElementById("pageNumberText");
+      const prevBtn = document.getElementById("btnPrevPage");
+      const nextBtn = document.getElementById("btnNextPage");
+
+      if (rangeText) rangeText.textContent = totalItems === 0 ? "0" : `${startIdx + 1}–${endIdx}`;
+      if (totalText) totalText.textContent = totalItems;
+      if (numText) numText.textContent = isAll ? "All items" : `Page ${currentStreamsPage} of ${totalPages}`;
+      if (prevBtn) prevBtn.disabled = isAll || currentStreamsPage <= 1;
+      if (nextBtn) nextBtn.disabled = isAll || currentStreamsPage >= totalPages;
     }
   }
 
@@ -450,12 +486,12 @@ function filterAndRenderStreams() {
     noResultsBox.style.display = "none";
   }
 
-  // Render Table / Cards
+  // Render Table / Cards for the current page
   const proto = window.location.protocol;
   const host = window.location.host;
   let html = "";
 
-  for (let item of filtered) {
+  for (let item of pageItems) {
     const liveCmd = `curl -sN ${proto}//${host}/${item.slug}`;
     const modeBadge = item.mode === "halfblock" ? "24-bit Truecolor" : "ASCII Density";
     const highlightedSlug = highlightText("/" + item.slug, q);
@@ -530,6 +566,7 @@ if (streamSearch) {
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
       activeSearchQuery = val;
+      currentStreamsPage = 1;
       filterAndRenderStreams();
       if (searchSpinner) searchSpinner.style.display = "none";
     }, 150);
@@ -565,6 +602,7 @@ if (streamSearch) {
     btnSearchClear.addEventListener("click", () => {
       streamSearch.value = "";
       activeSearchQuery = "";
+      currentStreamsPage = 1;
       btnSearchClear.style.display = "none";
       filterAndRenderStreams();
       streamSearch.focus();
@@ -597,9 +635,46 @@ document.querySelectorAll(".filter-pill").forEach((pill) => {
     document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
     pill.classList.add("active");
     activeFilter = pill.getAttribute("data-filter") || "all";
+    currentStreamsPage = 1;
     filterAndRenderStreams();
   });
 });
+
+// Page size selector buttons (4, 8, 12, All)
+document.querySelectorAll(".btn-page-size").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".btn-page-size").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const sizeVal = btn.getAttribute("data-size");
+    streamsPageSize = sizeVal === "all" ? "all" : parseInt(sizeVal, 10);
+    currentStreamsPage = 1;
+    filterAndRenderStreams();
+  });
+});
+
+// Pagination Navigation buttons
+const btnPrevPage = document.getElementById("btnPrevPage");
+const btnNextPage = document.getElementById("btnNextPage");
+
+if (btnPrevPage) {
+  btnPrevPage.addEventListener("click", () => {
+    if (currentStreamsPage > 1) {
+      currentStreamsPage--;
+      filterAndRenderStreams();
+      const streamsTable = document.querySelector(".table-container");
+      if (streamsTable) streamsTable.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+}
+
+if (btnNextPage) {
+  btnNextPage.addEventListener("click", () => {
+    currentStreamsPage++;
+    filterAndRenderStreams();
+    const streamsTable = document.querySelector(".table-container");
+    if (streamsTable) streamsTable.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+}
 
 // Global Keyboard Shortcut: Press '/' anywhere to focus search
 window.addEventListener("keydown", (e) => {

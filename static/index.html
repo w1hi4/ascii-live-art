@@ -201,6 +201,25 @@
             <button id="btnCreateFromSearch" class="btn-empty-action">Create Stream with this Name</button>
           </div>
         </div>
+
+        <!-- Pagination & Page Size Control (Default 4 Streams) -->
+        <div id="paginationBar" class="pagination-bar" style="display: none;">
+          <div class="pagination-info">
+            Showing <strong id="pageRangeText">1–4</strong> of <strong id="pageTotalText">4</strong> streams
+          </div>
+          <div class="page-size-selector">
+            <span class="page-size-label">Per page:</span>
+            <button class="btn-page-size active" data-size="4">4</button>
+            <button class="btn-page-size" data-size="8">8</button>
+            <button class="btn-page-size" data-size="12">12</button>
+            <button class="btn-page-size" data-size="all">All</button>
+          </div>
+          <div class="pagination-nav">
+            <button id="btnPrevPage" class="btn-page-nav" disabled aria-label="Previous Page">← Prev</button>
+            <span id="pageNumberText" class="page-current">Page 1 of 1</span>
+            <button id="btnNextPage" class="btn-page-nav" disabled aria-label="Next Page">Next →</button>
+          </div>
+        </div>
       </section>
 
       <!-- Creator Studio Section -->
