@@ -99,6 +99,37 @@
       white-space: nowrap;
     }
 
+    .viewer-shell-tabs {
+      display: inline-flex;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px;
+      gap: 1px;
+    }
+
+    .viewer-shell-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.45rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .viewer-shell-btn:hover {
+      color: #fff;
+    }
+
+    .viewer-shell-btn.active {
+      background: var(--gold-soft);
+      color: var(--gold);
+    }
+
     .btn-group {
       display: flex;
       gap: 0.4rem;
@@ -253,6 +284,11 @@
     <div class="cmd-group">
       <a href="/" class="btn-action">← Home</a>
       <div class="cmd-box" id="curlCmd">Loading command...</div>
+      <div class="viewer-shell-tabs">
+        <button class="viewer-shell-btn active" data-shell="powershell" title="PowerShell &amp; Terminal">PS</button>
+        <button class="viewer-shell-btn" data-shell="cmd" title="Command Prompt">CMD</button>
+        <button class="viewer-shell-btn" data-shell="bash" title="macOS / Linux / Bash">Bash</button>
+      </div>
     </div>
     <div class="btn-group">
       <button class="btn-action" id="btnCopyCurl">📋 Copy curl</button>

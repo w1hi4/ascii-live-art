@@ -305,7 +305,7 @@ class StreamHandler(BaseHandler):
             return
 
         user_agent = self.request.headers.get("User-Agent", "").lower()
-        is_terminal = any(term in user_agent for term in ["curl", "wget", "httpie", "powershell", "fetch"])
+        is_terminal = any(term in user_agent for term in ["curl", "wget", "httpie", "powershell", "fetch", "python", "aiohttp", "urllib"])
         force_raw = self.get_query_argument("raw", "0") == "1"
 
         if not is_terminal and not force_raw:

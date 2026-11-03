@@ -295,6 +295,15 @@ body {
   box-sizing: border-box;
 }
 
+.cmd-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
 .cmd-label {
   display: flex;
   align-items: center;
@@ -303,7 +312,77 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  margin-bottom: 0.6rem;
+  margin: 0;
+}
+
+/* Shell Selector Tabs */
+.shell-tabs {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.shell-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.28rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: var(--transition);
+  user-select: none;
+  outline: none;
+}
+
+.shell-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.shell-tab.active {
+  background: var(--gold-soft);
+  color: var(--gold);
+  border-color: rgba(255, 215, 0, 0.25);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.shell-tab svg {
+  flex-shrink: 0;
+}
+
+.shell-note {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.shell-note .note-icon {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.shell-note code {
+  color: var(--gold);
+  background: rgba(255, 215, 0, 0.09);
+  border: 1px solid rgba(255, 215, 0, 0.18);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.74rem;
 }
 
 .cmd-box {
@@ -1457,6 +1536,24 @@ select.input-ctrl {
   .banner-tagline {
     font-size: 0.72rem;
     text-align: center;
+  }
+
+  .cmd-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .shell-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .shell-tab {
+    justify-content: center;
+    padding: 0.35rem 0.2rem;
+    font-size: 0.7rem;
   }
 
   .cmd-box {

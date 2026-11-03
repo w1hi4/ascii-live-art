@@ -172,6 +172,27 @@ let serverSearchTimer = null;
 let currentStreamsPage = 1;
 let streamsPageSize = 4; // Default 4 streams per page to keep page compact
 
+// Active Shell Selector: defaults to powershell on Windows, bash on Mac/Linux
+const isWindowsPlatform = typeof navigator !== "undefined" && /Win/i.test(navigator.userAgent || navigator.platform);
+let activeShell = "powershell";
+try {
+  const saved = localStorage.getItem("ascii_preferred_shell");
+  if (saved) activeShell = saved;
+  else activeShell = isWindowsPlatform ? "powershell" : "bash";
+} catch (e) {
+  activeShell = isWindowsPlatform ? "powershell" : "bash";
+}
+
+function getShellCommand(slug) {
+  const proto = window.location.protocol;
+  const host = window.location.host;
+  const base = `${proto}//${host}/${slug}`;
+  if (activeShell === "powershell") {
+    return `curl.exe -sN ${base}`;
+  }
+  return `curl -sN ${base}`;
+}
+
 // --- DOM Elements ---
 const terminalScreen = document.getElementById("terminalScreen");
 const fileInput = document.getElementById("fileInput");
@@ -348,10 +369,10 @@ if (btnGenerate) {
 
       const result = await res.json();
       if (result.success) {
-        const proto = window.location.protocol;
-        const liveCurl = `curl -sN ${proto}//${window.location.host}/${result.slug}`;
-
-        if (shareCurl) shareCurl.textContent = liveCurl;
+        if (shareCurl) {
+          shareCurl.setAttribute("data-slug", result.slug);
+          shareCurl.textContent = getShellCommand(result.slug);
+        }
         const viewerBtn = document.getElementById("btnShareViewer");
         if (viewerBtn) {
           viewerBtn.href = `/viewer?slug=${encodeURIComponent(result.slug)}`;
@@ -473,7 +494,7 @@ function filterAndRenderStreams() {
   let html = "";
 
   for (let item of pageItems) {
-    const liveCmd = `curl -sN ${proto}//${host}/${item.slug}`;
+    const liveCmd = getShellCommand(item.slug);
     const modeBadge = item.mode === "halfblock" ? "24-bit Truecolor" : "ASCII Density";
     const highlightedSlug = highlightText("/" + item.slug, q);
     const highlightedTitle = highlightText(item.title || item.slug, q);
@@ -491,10 +512,10 @@ function filterAndRenderStreams() {
           <span class="badge-fps">${item.fps || 14} FPS</span>
         </td>
         <td>
-          <span class="stream-cmd-inline">${liveCmd}</span>
+          <span class="stream-cmd-inline" data-slug="${item.slug}">${liveCmd}</span>
         </td>
         <td class="actions-cell">
-          <button class="btn-table-copy" onclick="copyText('${liveCmd}')" aria-label="Copy stream command">
+          <button class="btn-table-copy" onclick="copyText(getShellCommand('${item.slug}'))" aria-label="Copy stream command">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span>Copy</span>
           </button>
@@ -724,13 +745,73 @@ function initAnimatedFavicon() {
   setInterval(drawFaviconFrame, 450);
 }
 
+// --- Shell Switcher UI Handlers ---
+function updateShellUI() {
+  document.querySelectorAll(".shell-tab").forEach(tab => {
+    const isCur = tab.getAttribute("data-shell") === activeShell;
+    tab.classList.toggle("active", isCur);
+    tab.setAttribute("aria-selected", isCur ? "true" : "false");
+  });
+
+  const heroCmd = document.getElementById("heroCmd");
+  const heroPromptSym = document.getElementById("heroPromptSym");
+  const shellNoteText = document.getElementById("shellNoteText");
+
+  if (heroCmd) {
+    heroCmd.textContent = getShellCommand("art");
+  }
+
+  if (heroPromptSym) {
+    if (activeShell === "powershell") heroPromptSym.textContent = "PS >";
+    else if (activeShell === "cmd") heroPromptSym.textContent = "C:\\>";
+    else heroPromptSym.textContent = "$";
+  }
+
+  if (shellNoteText) {
+    if (activeShell === "powershell") {
+      shellNoteText.innerHTML = "Windows PowerShell &amp; Terminal: uses <code>curl.exe</code> to bypass the built-in Invoke-WebRequest alias.";
+    } else if (activeShell === "cmd") {
+      shellNoteText.innerHTML = "Windows Command Prompt: native <code>curl -sN</code> execution.";
+    } else {
+      shellNoteText.innerHTML = "macOS, Linux, WSL, &amp; Git Bash: native <code>curl -sN</code> stream.";
+    }
+  }
+
+  const shareCurl = document.getElementById("shareCurl");
+  if (shareCurl && shareCurl.getAttribute("data-slug")) {
+    shareCurl.textContent = getShellCommand(shareCurl.getAttribute("data-slug"));
+  }
+
+  // Update table inline commands
+  document.querySelectorAll(".stream-cmd-inline").forEach(el => {
+    const slug = el.getAttribute("data-slug");
+    if (slug) {
+      el.textContent = getShellCommand(slug);
+    }
+  });
+}
+
+function setShell(shell) {
+  activeShell = shell;
+  try {
+    localStorage.setItem("ascii_preferred_shell", shell);
+  } catch (e) {}
+  updateShellUI();
+}
+
+function initShellTabs() {
+  document.querySelectorAll(".shell-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const shell = tab.getAttribute("data-shell");
+      if (shell) setShell(shell);
+    });
+  });
+  updateShellUI();
+}
+
 // Initial setup
 window.addEventListener("DOMContentLoaded", () => {
-  const heroCmd = document.getElementById("heroCmd");
-  if (heroCmd) {
-    const proto = window.location.protocol;
-    heroCmd.textContent = `curl -sN ${proto}//${window.location.host}/art`;
-  }
+  initShellTabs();
   initAnimatedFavicon();
   loadPreview("art");
   loadGallery();

@@ -173,11 +173,39 @@ let viewerIdx = 0;
 let viewerTimer = null;
 let isPlaying = true;
 
-async function initViewer() {
+// Active Shell in Viewer
+const isWindowsPlatform = typeof navigator !== "undefined" && /Win/i.test(navigator.userAgent || navigator.platform);
+let viewerShell = "powershell";
+try {
+  const saved = localStorage.getItem("ascii_preferred_shell");
+  if (saved) viewerShell = saved;
+  else viewerShell = isWindowsPlatform ? "powershell" : "bash";
+} catch(e) {
+  viewerShell = isWindowsPlatform ? "powershell" : "bash";
+}
+
+function updateViewerCmd() {
   const proto = window.location.protocol;
+  const host = window.location.host;
+  const bin = viewerShell === "powershell" ? "curl.exe" : "curl";
   if (curlCmd) {
-    curlCmd.textContent = `curl -sN ${proto}//${window.location.host}/${slug}`;
+    curlCmd.textContent = `${bin} -sN ${proto}//${host}/${slug}`;
   }
+  document.querySelectorAll(".viewer-shell-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-shell") === viewerShell);
+  });
+}
+
+async function initViewer() {
+  updateViewerCmd();
+
+  document.querySelectorAll(".viewer-shell-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      viewerShell = btn.getAttribute("data-shell") || "powershell";
+      try { localStorage.setItem("ascii_preferred_shell", viewerShell); } catch(e) {}
+      updateViewerCmd();
+    });
+  });
   try {
     const res = await fetch(`/api/animation/${slug}`);
     if (!res.ok) {
