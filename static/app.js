@@ -320,7 +320,7 @@ if (btnGenerate) {
             viewerBtn.style.padding = "0.35rem 0.75rem";
             viewerBtn.style.fontSize = "0.75rem";
             viewerBtn.style.textDecoration = "none";
-            viewerBtn.textContent = "▶️ Open in CRT Player";
+            viewerBtn.textContent = "▶️ Play";
             const actionsBar = shareBanner.querySelector(".success-cmd-bar");
             if (actionsBar) actionsBar.appendChild(viewerBtn);
           }
@@ -440,9 +440,9 @@ function filterAndRenderStreams() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             <span>Copy</span>
           </button>
-          <a href="/viewer?slug=${item.slug}" class="btn-table-view" aria-label="View stream on CRT">
+          <a href="/viewer?slug=${item.slug}" class="btn-table-view" aria-label="Play stream">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            <span>Play CRT</span>
+            <span>Play</span>
           </a>
         </td>
       </tr>
